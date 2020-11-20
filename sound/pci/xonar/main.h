@@ -12,4 +12,13 @@
 #define PCI_VENDOR_ID_ASUS 0x1043
 #define PCI_DEV_ID_XONARDX 0x0000 // TODO
 
+// main driver's card struct
+struct xonar {
+    struct snd_card *card;
+    struct pci_dev *pci;
+
+    unsigned long ioport;
+    int irq;
+};
+
 #endif //OS_MAIN_H

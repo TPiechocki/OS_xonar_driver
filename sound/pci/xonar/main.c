@@ -47,3 +47,136 @@ static const struct pci_device_id snd_xonar_id[] =  {
 /* add IDs table to the module */
 MODULE_DEVICE_TABLE(pci, snd_xonar_id);
 
+/* chip-specific destructor
+ * (see "PCI Resource Management")
+ */
+static int snd_xonar_free(struct xonar *chip)
+{
+    /* will be implemented later... */
+}
+
+/* component-destructor
+ * (see "Management of Cards and Components")
+ */
+static int snd_xonar_dev_free(struct snd_device *device)
+{
+    return snd_xonar_free(device->device_data);
+}
+
+
+/**
+ *
+ * @return errors are negative values
+ */
+static int snd_xonar_create(struct snd_card *card,
+        struct pci_dev *pci, struct xonar **rchip) {
+    struct xonar *chip;
+    int err;
+    static struct snd_device_ops ops = {
+            .dev_free = snd_xonar_dev_free,
+    };
+
+    *rchip = NULL;
+
+    /* check PCI availability here
+         * (see "PCI Resource Management")
+         */
+    // ....
+
+    /* allocate a chip-specific structure with zero filled */
+    chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+    if (chip == NULL)
+        return -ENOMEM;
+
+    chip->card = card;
+
+    /* rest of initialization here; will be implemented
+     * later, see "PCI Resource Management"
+     */
+    // ....
+
+    err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+    if (err < 0) {
+        snd_xonar_free(chip);
+        return err;
+    }
+
+    *rchip = chip;
+    return 0;
+}
+
+/**
+ *
+ * @param pci
+ * @param pci_id
+ * @return
+ */
+static int snd_xonar_probe(struct pci_dev *pci,
+                           const struct pci_device_id *pci_id) {
+    static int dev;
+    int err;
+
+    // Check and increment the device index to find the proper device
+    if (dev >= SNDRV_CARDS)
+        return -ENODEV;     // no such device
+    if (!enable[dev]) {
+        ++dev;
+        return -ENOENT;     // No such file or directory
+    }
+    // else this the proper pci card and it is free to use
+
+    // Create the card instance
+    struct snd_card *card;
+    err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                       0, &card);
+    if (err < 0) {
+        return err;
+    }
+
+    // Create the main component. Look for snd_xonar_create
+    struct xonar *chip;
+    // fill chip variable with chip data, structure from the main.h
+    err = snd_xonar_create(card, pci, &chip);
+    if (err < 0) {
+        // if error then free the card allocated earlier
+        snd_card_free(card);
+        return err;
+    }
+
+    // Set the driver ID and names
+    strcpy(card->driver, "Xonar");      // ID string of the chip, must be unique
+    strcpy(card->shortname, "Asus Xonar DX");
+    // longname is visible in /proc/asound/cards
+    sprintf(card->longname, "%s at 0x%lx irq %i",
+            card->shortname, chip->ioport, chip->irq);
+
+
+    // Register the card
+    err = snd_card_register(card);
+    if (err < 0) {
+        // free the allocated card structure
+        snd_card_free(card);
+        return err;
+    }
+
+    // set the pci driver, pointer used in remove callback and ...
+    pci_set_drvdata(pci, card);
+    // continue probe for other devices
+    dev++;
+    return 0;
+}
+
+/**
+ * Destructor is invoked as remove callback
+ * Assumption: driver is set in the pci driver data
+ * @param pci
+ */
+static void snd_xonar_remove(struct pci_dev *pci)
+{
+    // free the card structure
+    snd_card_free(pci_get_drvdata(pci));
+    // clear the pci driver fot the device
+    pci_set_drvdata(pci, NULL);
+    // ALSA middle layer will release all the attached components if there were any
+}
+

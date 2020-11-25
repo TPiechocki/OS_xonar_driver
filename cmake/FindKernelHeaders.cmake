@@ -8,15 +8,14 @@ execute_process(
         OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+set(KERNELHEADERS_DIR /lib/modules/${KERNEL_RELEASE}/build)
+
+message(STATUS "Kernel release: ${KERNEL_RELEASE}")
 # Find the headers
 find_path(KERNELHEADERS_DIR
         include/linux/user.h
         PATHS /lib/modules/${KERNEL_RELEASE}/build
         )
-
-# set(KERNELHEADERS_DIR /lib/modules/${KERNEL_RELEASE}/build)
-
-message(STATUS "Kernel release: ${KERNEL_RELEASE}")
 message(STATUS "Kernel headers: ${KERNELHEADERS_DIR}")
 
 if (KERNELHEADERS_DIR)
@@ -29,5 +28,9 @@ if (KERNELHEADERS_DIR)
 else (KERNELHEADERS_DIR)
     set(KERNELHEADERS_FOUND 0 CACHE STRING "Set to 1 if kernel headers were found")
 endif (KERNELHEADERS_DIR)
+
+
+
+message(STATUS "Kernel headers: ${KERNELHEADERS_INCLUDE_DIRS}")
 
 mark_as_advanced(KERNELHEADERS_FOUND)

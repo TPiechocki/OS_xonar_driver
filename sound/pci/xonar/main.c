@@ -47,7 +47,7 @@ static const struct pci_device_id snd_xonar_id[] =  {
 /* add IDs table to the module */
 MODULE_DEVICE_TABLE(pci, snd_xonar_id);
 
-/* chip-specific destructor
+/** chip-specific destructor
  * (see "PCI Resource Management")
  */
 static int snd_xonar_free(struct xonar *chip)
@@ -55,7 +55,7 @@ static int snd_xonar_free(struct xonar *chip)
     /* will be implemented later... */
 }
 
-/* component-destructor
+/** component-destructor
  * (see "Management of Cards and Components")
  */
 static int snd_xonar_dev_free(struct snd_device *device)
@@ -65,7 +65,11 @@ static int snd_xonar_dev_free(struct snd_device *device)
 
 
 /**
- *
+ * Create/initialize chip specific data.
+ * @param card - already created card structure
+ * @param pci - pci structure for device given from the kernel
+ * @param chip -  structure with chip specific data, it will be filled by this function. Data was allocated with
+ *                  snd_card_new()
  * @return errors are negative values
  */
 static int snd_xonar_create(struct snd_card *card,
@@ -76,17 +80,12 @@ static int snd_xonar_create(struct snd_card *card,
             .dev_free = snd_xonar_dev_free,
     };
 
-    *rchip = NULL;
+    *rchip = card->private_data;
 
     /* check PCI availability here
          * (see "PCI Resource Management")
          */
     // ....
-
-    /* allocate a chip-specific structure with zero filled */
-    chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-    if (chip == NULL)
-        return -ENOMEM;
 
     chip->card = card;
 
@@ -95,6 +94,8 @@ static int snd_xonar_create(struct snd_card *card,
      */
     // ....
 
+    // Register PCM sound device with filled data. Device is the part of the card which perform operations.
+    // arguments are: already created card struct, level of the device, pointer to fill the device's data and callbacks
     err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
     if (err < 0) {
         snd_xonar_free(chip);
@@ -125,16 +126,17 @@ static int snd_xonar_probe(struct pci_dev *pci,
     }
     // else this the proper pci card and it is free to use
 
-    // Create the card instance
+    // Create the card instance. Card instance manage all components (devices) of the soundcard.
     struct snd_card *card;
+    struct xonar *chip;
+    // Arguments are: parent PCI device, card index and id, module ptr, size of the extra data and variable ptr to be filled
     err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-                       0, &card);
+                       sizeof(*chip), &card);
     if (err < 0) {
         return err;
     }
 
-    // Create the main component. Look for snd_xonar_create
-    struct xonar *chip;
+    // Create the main component. Look for snd_xonar_create.
     // fill chip variable with chip data, structure from the main.h
     err = snd_xonar_create(card, pci, &chip);
     if (err < 0) {

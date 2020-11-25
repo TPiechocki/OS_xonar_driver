@@ -42,7 +42,8 @@ MODULE_PARM_DESC(enable, "Enable " CARD_NAME " soundcard.");
 static const struct pci_device_id snd_xonar_id[] =  {
         // device is C-Media(vendor) CMI8788(device): ASUS (subvend) Xonar DX (subdevice)
         { PCI_DEVICE_SUB(PCI_VENDOR_ID_CMEDIA, PCI_DEV_ID_CM8788,
-                         PCI_VENDOR_ID_ASUS, PCI_DEV_ID_XONARDX) }
+                         PCI_VENDOR_ID_ASUS, PCI_DEV_ID_XONARDX) },
+        { 0 }       // list terminator
 };
 /* add IDs table to the module */
 MODULE_DEVICE_TABLE(pci, snd_xonar_id);
@@ -52,7 +53,19 @@ MODULE_DEVICE_TABLE(pci, snd_xonar_id);
  */
 static int snd_xonar_free(struct xonar *chip)
 {
-    /* will be implemented later... */
+    /* disable hardware here if any */
+    // TODO /* (not implemented in this document) */
+
+    // release irq
+    if (chip->irq >= 0)
+        free_irq(chip->irq, chip);
+    // release IO region
+    pci_release_regions(chip->pci);
+    // disable the PCI entry
+    pci_disable_device(chip->pci);
+    // free the allocated chip data
+    kfree(chip);
+    return 0;   // success
 }
 
 /** component-destructor
@@ -82,19 +95,46 @@ static int snd_xonar_create(struct snd_card *card,
 
     *rchip = card->private_data;
 
-    /* check PCI availability here
-         * (see "PCI Resource Management")
-         */
-    // ....
+    /* initialize PCI entry */
+    err = pci_enable_device(pci);
+    if (err < 0)
+        return err;
+    /* check PCI availability here aka set DMA ask */
+    // I don't see this part in oxygen module so I skip this.
+
+    // enable bus-mastering(?) for the device; it allows the bus to initiate DMA transactions
+    pci_set_master(pci);
 
     chip->card = card;
 
     /* rest of initialization here; will be implemented
      * later, see "PCI Resource Management"
      */
-    // ....
 
-    // Register PCM sound device with filled data. Device is the part of the card which perform operations.
+    // allocate I/O port
+    err = pci_request_regions(pci, "Xonar");
+    if (err < 0) {
+        kfree(chip);
+        pci_disable_device(pci);
+        return err;
+    }
+    // TODO optionally add memory length check like in oxygen
+    chip->ioport = pci_resource_start(pci, 0);
+
+    // Allocation for interruption source TODO add interrupt handler, uncomment
+    // arguments are irq line number, interupt handler, flags (int is shared across PCI devices), module name and
+    // data passed to handler, which is chip specific variable here
+    /*if (request_irq(pci->irq, snd_mychip_interrupt,
+                    IRQF_SHARED, KBUILD_MODNAME, chip)) {
+        printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
+        snd_xonar_free(chip);
+        return -EBUSY;
+    }
+    chip->irq = pci->irq;*/
+
+    // TODO? init pcm_oxygen and mixer_oxygen
+
+    // Register sound device with filled data. Device is the part of the card which perform operations.
     // arguments are: already created card struct, level of the device, pointer to fill the device's data and callbacks
     err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
     if (err < 0) {
@@ -182,3 +222,25 @@ static void snd_xonar_remove(struct pci_dev *pci)
     // ALSA middle layer will release all the attached components if there were any
 }
 
+// prepare the pci driver record with functions
+static struct pci_driver driver = {
+        // TODO: .name = KBUILD_MODNAME,    understand KBUILD_MODNAME
+        .name = "Xonar",
+        .id_table = snd_xonar_id,
+        .probe = snd_xonar_probe,
+        .remove = snd_xonar_remove
+};
+
+// module entries
+static int __init alsa_card_xonar_init(void)
+{
+    return pci_register_driver(&driver);
+}
+
+static void __exit alsa_card_xonar_exit(void)
+{
+    pci_unregister_driver(&driver);
+}
+
+module_init(alsa_card_xonar_init)
+module_exit(alsa_card_xonar_exit)

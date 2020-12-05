@@ -10,7 +10,7 @@
 
 #define PCI_DEV_ID_CM8788 0x8788
 #define PCI_VENDOR_ID_ASUS 0x1043
-#define PCI_DEV_ID_XONARDX 0x0000 // TODO
+#define PCI_DEV_ID_XONARDX 0x8275
 
 // main driver's card struct
 struct xonar {

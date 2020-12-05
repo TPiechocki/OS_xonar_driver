@@ -9,6 +9,8 @@
 
 
 #include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>

@@ -30,7 +30,6 @@ else (KERNELHEADERS_DIR)
 endif (KERNELHEADERS_DIR)
 
 
-
 message(STATUS "Kernel headers: ${KERNELHEADERS_INCLUDE_DIRS}")
 
 mark_as_advanced(KERNELHEADERS_FOUND)

@@ -18,6 +18,8 @@ add_definitions(-D__KERNEL__ -DMODULE)
 add_executable(dummy
         sound/pci/xonar/main.h
         sound/pci/xonar/main.c
+        sound/pci/xonar/oxygen_io.c
+        sound/pci/xonar/oxygen.h
         )
 
 # CLion IDE will find symbols from <linux/*>

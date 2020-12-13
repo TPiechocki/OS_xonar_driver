@@ -5,7 +5,7 @@
 #ifndef OS_MAIN_H
 #define OS_MAIN_H
 
-#include <sound/pci/ox
+#include "oxygen.h"
 
 // card name for module parameters
 #define CARD_NAME "Xonar DX"
@@ -25,6 +25,7 @@
 #define DEFAULT_BUFFER_BYTES		(BUFFER_BYTES_MAX / 2)
 #define DEFAULT_BUFFER_BYTES_MULTICH	(1024 * 1024)
 
+#define OXYGEN_INTERRUPT_STATUS		0x46
 
 // main driver's card struct
 struct xonar {
@@ -38,7 +39,23 @@ struct xonar {
     struct snd_pcm *pcm;
     struct snd_pcm_substream *substream;
 
+    // hardware elements
+    unsigned int anti_pop_delay;
+    u16 output_enable_bit;
+    u8 ext_power_reg;
+    u8 ext_power_int_reg;
+    u8 ext_power_bit;
+    u8 has_power;
+    u8 cs4398_regs[8];
+    u8 cs4362a_regs[15];
+
     struct spinlock lock;
 };
+
+u8 xonar_read8(struct xonar *chip, unsigned int reg);
+u16 xonar_read16(struct xonar *chip, unsigned int reg);
+u32 xonar_read32(struct xonar *chip, unsigned int reg);
+
+// xonar_hardware declarations
 
 #endif //OS_MAIN_H

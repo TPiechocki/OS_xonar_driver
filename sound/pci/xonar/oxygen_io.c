@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <sound/core.h>
 #include <sound/mpu401.h>
+
 #include "main.h"
 
 u8 xonar_read8(struct xonar *chip, unsigned int reg)

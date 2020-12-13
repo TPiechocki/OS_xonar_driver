@@ -185,9 +185,6 @@ int oxygen_pcm_init(struct oxygen *chip);
 
 /* oxygen_io.c */
 
-u8 xonar_read8(struct xonar *chip, unsigned int reg);
-u16 xonar_read16(struct xonar *chip, unsigned int reg);
-u32 xonar_read32(struct xonar *chip, unsigned int reg);
 void xonar_write8(struct xonar *chip, unsigned int reg, u8 value);
 void xonar_write16(struct xonar *chip, unsigned int reg, u16 value);
 void xonar_write32(struct xonar *chip, unsigned int reg, u32 value);

@@ -5,6 +5,8 @@
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
  */
 
+// INPUT and OTUPUT operations for the hardware data (registers)
+
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/export.h>
@@ -31,25 +33,57 @@ u32 xonar_read32(struct xonar *chip, unsigned int reg)
 	return inl(chip->ioport + reg);
 }
 EXPORT_SYMBOL(xonar_read32);
-/*
-void xonar_write8(struct xonar *chip, unsigned int reg, u8 value)
+
+void oxygen_write8(struct xonar *chip, unsigned int reg, u8 value)
 {
 	outb(value, chip->ioport + reg);
 	chip->saved_registers._8[reg] = value;
 }
-EXPORT_SYMBOL(xonar_write8);
+EXPORT_SYMBOL(oxygen_write8);
 
-void xonar_write16(struct xonar *chip, unsigned int reg, u16 value)
+void oxygen_write16(struct xonar *chip, unsigned int reg, u16 value)
 {
 	outw(value, chip->ioport + reg);
 	chip->saved_registers._16[reg / 2] = cpu_to_le16(value);
 }
-EXPORT_SYMBOL(xonar_write16);
+EXPORT_SYMBOL(oxygen_write16);
 
-void xonar_write32(struct xonar *chip, unsigned int reg, u32 value)
+void oxygen_write32(struct xonar *chip, unsigned int reg, u32 value)
 {
 	outl(value, chip->ioport + reg);
 	chip->saved_registers._32[reg / 4] = cpu_to_le32(value);
 }
-EXPORT_SYMBOL(xonar_write32);
-*/
+EXPORT_SYMBOL(oxygen_write32);
+
+void oxygen_write8_masked(struct xonar *chip, unsigned int reg,
+                          u8 value, u8 mask)
+{
+    u8 tmp = inb(chip->ioport + reg);
+    tmp &= ~mask;
+    tmp |= value & mask;
+    outb(tmp, chip->ioport + reg);
+    chip->saved_registers._8[reg] = tmp;
+}
+EXPORT_SYMBOL(oxygen_write8_masked);
+
+void oxygen_write16_masked(struct xonar *chip, unsigned int reg,
+                           u16 value, u16 mask)
+{
+    u16 tmp = inw(chip->ioport + reg);
+    tmp &= ~mask;
+    tmp |= value & mask;
+    outw(tmp, chip->ioport + reg);
+    chip->saved_registers._16[reg / 2] = cpu_to_le16(tmp);
+}
+EXPORT_SYMBOL(oxygen_write16_masked);
+
+void oxygen_write32_masked(struct xonar *chip, unsigned int reg,
+                           u32 value, u32 mask)
+{
+    u32 tmp = inl(chip->ioport + reg);
+    tmp &= ~mask;
+    tmp |= value & mask;
+    outl(tmp, chip->ioport + reg);
+    chip->saved_registers._32[reg / 4] = cpu_to_le32(tmp);
+}
+EXPORT_SYMBOL(oxygen_write32_masked);

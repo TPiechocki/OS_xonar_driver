@@ -16,6 +16,7 @@
 #include <linux/pci.h>
 #include <sound/pcm.h>
 
+
 #include "main.h"
 #include "oxygen.h"
 
@@ -51,8 +52,8 @@ static const struct pci_device_id snd_xonar_id[] =  {
 /* add IDs table to the module */
 MODULE_DEVICE_TABLE(pci, snd_xonar_id);
 
-/** chip-specific destructor
- * (see "PCI Resource Management")
+/**
+ * Chip-specific destructor
  */
 static int snd_xonar_free(struct xonar *chip)
 {
@@ -71,15 +72,47 @@ static int snd_xonar_free(struct xonar *chip)
     return 0;   // success
 }
 
-/** component-destructor
- * (see "Management of Cards and Components")
+/**
+ * Destructor of this component
  */
 static int snd_xonar_dev_free(struct snd_device *device)
 {
     return snd_xonar_free(device->device_data);
 }
 
-static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id);
+/**
+ * Interrupt handler
+ * @param irq - irq number
+ * @param dev_id - chip pointer
+ * @return
+ */
+static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id)
+{
+    struct xonar *chip = dev_id;
+
+    // read the information whteher this chip was interrupted
+    unsigned int status = xonar_read16(chip, OXYGEN_INTERRUPT_STATUS);
+    // if interrupt doesn't relate to this chip than skip handling
+    if (!status)
+        return IRQ_NONE;
+
+    // interrupt handler is atomic so use the spin lock
+    spin_lock(&chip->lock);
+
+    // TODO set interrupt mask
+
+    /* call updater, unlock before it */
+    spin_unlock(&chip->lock);
+    snd_pcm_period_elapsed(chip->substream);
+    spin_lock(&chip->lock);
+    /* acknowledge the interrupt if necessary */
+
+    // TODO perform tasks if needed
+
+    spin_unlock(&chip->lock);
+    return IRQ_HANDLED;
+}
+
 
 /**
  * Create/initialize chip specific data.
@@ -125,8 +158,13 @@ static int snd_xonar_create(struct snd_card *card,
     // TODO optionally add memory length check like in oxygen
     chip->ioport = pci_resource_start(pci, 0);
 
-    // Allocation for interruption source TODO add interrupt handler, check if this funcion works
-    // arguments are irq line number, interupt handler, flags (int is shared across PCI devices), module name and
+    // TODO oxygen init
+
+    // TODO xonar init
+
+
+    // Allocation for interruption source TODO check if this funcion works with interrupt handler
+    // arguments are irq line number, interrupt handler, flags (int is shared across PCI devices), module name and
     // data passed to handler, which is chip specific variable here
     if (request_irq(pci->irq, snd_xonar_interrupt,
                     IRQF_SHARED, KBUILD_MODNAME, chip)) {
@@ -149,27 +187,6 @@ static int snd_xonar_create(struct snd_card *card,
     *rchip = chip;
     return 0;
 }
-
-static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id)
-{
-    struct xonar *chip = dev_id;
-    spin_lock(&chip->lock);
-
-    unsigned int status = xonar_read16(chip, OXYGEN_INTERRUPT_STATUS);
-
-    if (!status)
-        return IRQ_NONE;
-
-    /* call updater, unlock before it */
-    spin_unlock(&chip->lock);
-    snd_pcm_period_elapsed(chip->substream);
-    spin_lock(&chip->lock);
-    /* acknowledge the interrupt if necessary */
-
-    spin_unlock(&chip->lock);
-    return IRQ_HANDLED;
-}
-
 /**
  *
  * @param pci
@@ -201,7 +218,8 @@ static int snd_xonar_probe(struct pci_dev *pci,
     }
 
     // Create the main component. Look for snd_xonar_create.
-    // fill chip variable with chip data, structure from the main.h
+    // Fill chip variable with chip data, structure from the main.h
+    // Set the hardware, set the interrupts etc.
     err = snd_xonar_create(card, pci, &chip);
     if (err < 0) {
         // if error then free the card allocated earlier
@@ -217,7 +235,7 @@ static int snd_xonar_probe(struct pci_dev *pci,
             card->shortname, chip->ioport, chip->irq);
 
 
-    // Register the card
+    // Register the card in the ALSA
     err = snd_card_register(card);
     if (err < 0) {
         // free the allocated card structure
@@ -248,7 +266,7 @@ static void snd_xonar_remove(struct pci_dev *pci)
 
 // prepare the pci driver record with functions
 static struct pci_driver driver = {
-        .name = KBUILD_MODNAME, // TODO check if works
+        .name = KBUILD_MODNAME,
         .name = "Xonar",
         .id_table = snd_xonar_id,
         .probe = snd_xonar_probe,
@@ -260,11 +278,9 @@ static int __init alsa_card_xonar_init(void)
 {
     return pci_register_driver(&driver);
 }
-
 static void __exit alsa_card_xonar_exit(void)
 {
     pci_unregister_driver(&driver);
 }
-
 module_init(alsa_card_xonar_init)
 module_exit(alsa_card_xonar_exit)

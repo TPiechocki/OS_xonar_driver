@@ -21,7 +21,8 @@ add_executable(dummy
         sound/pci/xonar/pcm.c
         sound/pci/xonar/oxygen_io.c
         sound/pci/xonar/oxygen.h
-        sound/pci/xonar/xonar_hardware.c)
+        sound/pci/xonar/xonar_hardware.c
+        sound/pci/xonar/xonar_lib.c)
 
 # CLion IDE will find symbols from <linux/*>
 target_include_directories("dummy" PRIVATE ${KERNELHEADERS_INCLUDE_DIRS})

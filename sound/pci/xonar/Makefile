@@ -1,4 +1,4 @@
-obj-m    := main.o
+obj-m    := main.o oxygen_io.o
 
 KDIR    := /lib/modules/$(shell uname -r)/build
 

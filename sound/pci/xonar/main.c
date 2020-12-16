@@ -111,6 +111,8 @@ static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id)
 
     /* call updater, unlock before it */
     spin_unlock(&chip->lock);
+
+    // TODO check chip->pcm_running(?)
     snd_pcm_period_elapsed(chip->substream);
     spin_lock(&chip->lock);
     /* acknowledge the interrupt if necessary */
@@ -283,13 +285,29 @@ static void snd_xonar_remove(struct pci_dev *pci)
     // ALSA middle layer will release all the attached components if there were any
 }
 
+static void snd_xonar_shutdown(struct pci_dev *pci) {
+    struct snd_card *card = pci_get_drvdata(pci);
+    struct xonar *chip = card->private_data;
+
+    // disable the whole chip
+    spin_lock_irq(&chip->lock);
+    chip->interrupt_mask = 0;
+    chip->pcm_running = 0;
+    oxygen_write16(chip, OXYGEN_DMA_STATUS, 0);
+    oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
+    spin_unlock_irq(&chip->lock);
+
+    // clean up xonar specific data
+    xonar_dx_cleanup(chip);
+}
+
 // prepare the pci driver record with functions
 static struct pci_driver driver = {
         .name = KBUILD_MODNAME,
-        .name = "Xonar",
         .id_table = snd_xonar_id,
         .probe = snd_xonar_probe,
-        .remove = snd_xonar_remove
+        .remove = snd_xonar_remove,
+        .shutdown = snd_xonar_shutdown
 };
 
 // module entries

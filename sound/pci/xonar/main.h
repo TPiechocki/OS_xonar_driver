@@ -168,6 +168,7 @@ static inline void oxygen_ac97_clear_bits(struct xonar *chip,
 
 // xonar_hardware declarations
 static void xonar_dx_init(struct xonar *chip);
+static void xonar_dx_cleanup(struct xonar *chip);
 // and oxygen hardware as well
 static void oxygen_init(struct xonar *chip);
 

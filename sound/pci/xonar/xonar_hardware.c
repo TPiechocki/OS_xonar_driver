@@ -150,7 +150,18 @@ static void xonar_dx_init(struct xonar *chip) {
     snd_component_add(chip->card, "CS5361");
 }
 
-// TODO XONAR CLEANUP
+static void cs4362a_write(struct xonar *chip, u8 reg, u8 value);
+static void xonar_dx_cleanup(struct xonar *chip)
+{
+    // disable output from the card
+    xonar_disable_output(chip);
+    // TODO check in sheets disable second DAC?
+    cs4362a_write(chip, 0x01, CS4362A_PDN | CS4362A_CPEN);
+    // OXYGEN things
+    oxygen_clear_bits8(chip, OXYGEN_FUNCTION, OXYGEN_FUNCTION_RESET_CODEC);
+}
+
+
 
 // HARDWARE WRITES
 

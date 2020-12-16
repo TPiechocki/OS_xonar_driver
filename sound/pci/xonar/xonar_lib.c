@@ -20,6 +20,9 @@
 #define GPIO_CS53x1_M_QUAD	0x0008
 
 
+/**
+ * Enable output of the card
+ */
 void xonar_enable_output(struct xonar *chip)
 {
 	struct xonar *data = chip;
@@ -31,6 +34,9 @@ void xonar_enable_output(struct xonar *chip)
 	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, data->output_enable_bit);
 }
 
+/**
+ * Disable output of the card
+ */
 void xonar_disable_output(struct xonar *chip)
 {
 	struct xonar *data = chip;
@@ -69,6 +75,10 @@ void xonar_init_ext_power(struct xonar *chip)
 			     & data->ext_power_bit);
 }
 
+/**
+ * Initialize CS5361 DAC
+ * @param chip
+ */
 void xonar_init_cs53x1(struct xonar *chip)
 {
 	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_CS53x1_M_MASK);

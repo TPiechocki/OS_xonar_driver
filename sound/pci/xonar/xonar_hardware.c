@@ -56,7 +56,23 @@
 
 // enable output
 #define GPIO_DX_OUTPUT_ENABLE	0x0001
+#define GPIO_D1_FRONT_PANEL	0x0002
+#define GPIO_D1_MAGIC		0x00c0
+#define GPIO_D1_INPUT_ROUTE	0x0100
 
+
+#define I2C_DEVICE_CS4398	0x9e	/* 10011, AD1=1, AD0=1, /W=0 */
+#define I2C_DEVICE_CS4362A	0x30	/* 001100, AD0=0, /W=0 */
+
+
+/*
+ * Write set values into the hardware registers.
+ */
+static void cs43xx_registers_init(struct xonar *chip);
+
+/**
+ * Initialize and set all needed hardware
+ */
 static void xonar_dx_init(struct xonar *chip) {
     // XONAR DX
     struct xonar *data = chip;
@@ -105,26 +121,97 @@ static void xonar_dx_init(struct xonar *chip) {
     data->cs4362a_regs[13] = 60 | CS4362A_MUTE;
     data->cs4362a_regs[14] = 60 | CS4362A_MUTE;
 
+    // probably set I2C output connection properly
     oxygen_write16(chip, OXYGEN_2WIRE_BUS_STATUS,
                    OXYGEN_2WIRE_LENGTH_8 |
                    OXYGEN_2WIRE_INTERRUPT_MASK |
                    OXYGEN_2WIRE_SPEED_FAST);
 
+    // write values from software registers into hardware registers
     cs43xx_registers_init(chip);
 
+    // set proper bits as writeable
     oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
                       GPIO_D1_FRONT_PANEL |
                       GPIO_D1_MAGIC |
                       GPIO_D1_INPUT_ROUTE);
+    // disable ?, front panel output and set input route to line-in
     oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA,
                         GPIO_D1_FRONT_PANEL | GPIO_D1_INPUT_ROUTE);
 
+    // Input DAC?
     xonar_init_cs53x1(chip);
+    // enable cards' output
     xonar_enable_output(chip);
 
+    // add set DACs as components of the card
     snd_component_add(chip->card, "CS4398");
     snd_component_add(chip->card, "CS4362A");
     snd_component_add(chip->card, "CS5361");
 }
 
+// TODO XONAR CLEANUP
+
+// HARDWARE WRITES
+
+static void cs4398_write(struct xonar *chip, u8 reg, u8 value)
+{
+	struct xonar *data = chip;
+
+	oxygen_write_i2c(chip, I2C_DEVICE_CS4398, reg, value);
+	if (reg < ARRAY_SIZE(data->cs4398_regs))
+		data->cs4398_regs[reg] = value;
+}
+
+static void cs4398_write_cached(struct xonar *chip, u8 reg, u8 value)
+{
+	struct xonar *data = chip;
+
+	if (value != data->cs4398_regs[reg])
+		cs4398_write(chip, reg, value);
+}
+
+static void cs4362a_write(struct xonar *chip, u8 reg, u8 value)
+{
+	struct xonar *data = chip;
+
+	oxygen_write_i2c(chip, I2C_DEVICE_CS4362A, reg, value);
+	if (reg < ARRAY_SIZE(data->cs4362a_regs))
+		data->cs4362a_regs[reg] = value;
+}
+
+static void cs4362a_write_cached(struct xonar *chip, u8 reg, u8 value)
+{
+	struct xonar *data = chip;
+
+	if (value != data->cs4362a_regs[reg])
+		cs4362a_write(chip, reg, value);
+}
+
+static void cs43xx_registers_init(struct xonar *chip)
+{
+	struct xonar *data = chip;
+	unsigned int i;
+
+	/* set CPEN (control port mode) and power down */
+	cs4398_write(chip, 8, CS4398_CPEN | CS4398_PDN);
+	cs4362a_write(chip, 0x01, CS4362A_PDN | CS4362A_CPEN);
+	/* configure */
+	cs4398_write(chip, 2, data->cs4398_regs[2]);
+	cs4398_write(chip, 3, CS4398_ATAPI_B_R | CS4398_ATAPI_A_L);
+	cs4398_write(chip, 4, data->cs4398_regs[4]);
+	cs4398_write(chip, 5, data->cs4398_regs[5]);
+	cs4398_write(chip, 6, data->cs4398_regs[6]);
+	cs4398_write(chip, 7, data->cs4398_regs[7]);
+	cs4362a_write(chip, 0x02, CS4362A_DIF_LJUST);
+	cs4362a_write(chip, 0x03, CS4362A_MUTEC_6 | CS4362A_AMUTE |
+		      CS4362A_RMP_UP | CS4362A_ZERO_CROSS | CS4362A_SOFT_RAMP);
+	cs4362a_write(chip, 0x04, data->cs4362a_regs[0x04]);
+	cs4362a_write(chip, 0x05, 0);
+	for (i = 6; i <= 14; ++i)
+		cs4362a_write(chip, i, data->cs4362a_regs[i]);
+	/* clear power down */
+	cs4398_write(chip, 8, CS4398_CPEN);
+	cs4362a_write(chip, 0x01, CS4362A_CPEN);
+}
 

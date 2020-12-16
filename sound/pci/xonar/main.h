@@ -54,6 +54,7 @@ struct xonar {
         __le16 _16[OXYGEN_IO_SIZE / 2];
         __le32 _32[OXYGEN_IO_SIZE / 4];
     } saved_registers;
+    u16 saved_ac97_registers[2][0x40];
 
     // hardware xonar elements
     unsigned int anti_pop_delay;
@@ -71,6 +72,34 @@ struct xonar {
 
     // general spinlock for e.g. interrupt handler
     struct spinlock lock;
+
+
+    // OXYGEN - don't really know the meaning of things here
+    u8 dac_volume[8];
+    u8 dac_mute;
+    u8 pcm_active;
+    u8 pcm_running;
+    u8 dac_routing;
+    u8 spdif_playback_enable;
+    u8 has_ac97_0;
+    u8 has_ac97_1;
+    u32 spdif_bits;
+    u32 spdif_pcm_bits;
+    wait_queue_head_t ac97_waitqueue;
+
+    // oxygen->model
+    size_t model_data_size;
+    unsigned int device_config;
+    u8 dac_channels_pcm;
+    u8 dac_channels_mixer;
+    u8 dac_volume_min;
+    u8 dac_volume_max;
+    u8 misc_flags;
+    u8 function_flags;
+    u8 dac_mclks;
+    u8 adc_mclks;
+    u16 dac_i2s_format;
+    u16 adc_i2s_format;
 };
 
 // OXYGEN I/O operations exports
@@ -89,34 +118,58 @@ void oxygen_write16_masked(struct xonar *chip, unsigned int reg,
 void oxygen_write32_masked(struct xonar *chip, unsigned int reg,
                            u32 value, u32 mask);
 
-static inline void oxygen_set_bits8(struct oxygen *chip,
+static inline void oxygen_set_bits8(struct xonar *chip,
                                     unsigned int reg, u8 value) {
     oxygen_write8_masked(chip, reg, value, value);
 }
-static inline void oxygen_set_bits16(struct oxygen *chip,
+static inline void oxygen_set_bits16(struct xonar *chip,
                                      unsigned int reg, u16 value) {
     oxygen_write16_masked(chip, reg, value, value);
 }
-static inline void oxygen_set_bits32(struct oxygen *chip,
+static inline void oxygen_set_bits32(struct xonar *chip,
                                      unsigned int reg, u32 value) {
     oxygen_write32_masked(chip, reg, value, value);
 }
-static inline void oxygen_clear_bits8(struct oxygen *chip,
+static inline void oxygen_clear_bits8(struct xonar *chip,
                                       unsigned int reg, u8 value) {
     oxygen_write8_masked(chip, reg, 0, value);
 }
-static inline void oxygen_clear_bits16(struct oxygen *chip,
+static inline void oxygen_clear_bits16(struct xonar *chip,
                                        unsigned int reg, u16 value) {
     oxygen_write16_masked(chip, reg, 0, value);
 }
-static inline void oxygen_clear_bits32(struct oxygen *chip,
+static inline void oxygen_clear_bits32(struct xonar *chip,
                                        unsigned int reg, u32 value) {
     oxygen_write32_masked(chip, reg, 0, value);
 }
 
+void oxygen_write_i2c(struct xonar *chip, u8 device, u8 map, u8 data);
+
+
+u16 oxygen_read_ac97(struct xonar *chip, unsigned int codec,
+                     unsigned int index);
+void oxygen_write_ac97(struct xonar *chip, unsigned int codec,
+                       unsigned int index, u16 data);
+void oxygen_write_ac97_masked(struct xonar *chip, unsigned int codec,
+                              unsigned int index, u16 data, u16 mask);
+static inline void oxygen_ac97_set_bits(struct xonar *chip, unsigned int codec,
+                                        unsigned int index, u16 value)
+{
+    oxygen_write_ac97_masked(chip, codec, index, value, value);
+}
+
+static inline void oxygen_ac97_clear_bits(struct xonar *chip,
+                                          unsigned int codec,
+                                          unsigned int index, u16 value)
+{
+    oxygen_write_ac97_masked(chip, codec, index, 0, value);
+}
+
 
 // xonar_hardware declarations
-
+static void xonar_dx_init(struct xonar *chip);
+// and oxygen hardware as well
+static void oxygen_init(struct xonar *chip);
 
 // xonar_lib helpers
 #define GPI_EXT_POWER		0x01
@@ -133,5 +186,42 @@ int xonar_gpio_bit_switch_get(struct snd_kcontrol *ctl,
                               struct snd_ctl_elem_value *value);
 int xonar_gpio_bit_switch_put(struct snd_kcontrol *ctl,
                               struct snd_ctl_elem_value *value);
+
+
+// OXYGEN DEFINES
+/* 1 << PCM_x == OXYGEN_CHANNEL_x */
+#define PCM_A		0
+#define PCM_B		1
+#define PCM_C		2
+#define PCM_SPDIF	3
+#define PCM_MULTICH	4
+#define PCM_AC97	5
+#define PCM_COUNT	6
+
+#define OXYGEN_MCLKS(f_single, f_double, f_quad) ((MCLK_##f_single << 0) | \
+						  (MCLK_##f_double << 2) | \
+						  (MCLK_##f_quad   << 4))
+
+#define OXYGEN_IO_SIZE	0x100
+
+#define OXYGEN_EEPROM_ID	0x434d	/* "CM" */
+
+/* model-specific configuration of outputs/inputs */
+#define PLAYBACK_0_TO_I2S	0x0001
+/* PLAYBACK_0_TO_AC97_0		not implemented */
+#define PLAYBACK_1_TO_SPDIF	0x0004
+#define PLAYBACK_2_TO_AC97_1	0x0008
+#define CAPTURE_0_FROM_I2S_1	0x0010
+#define CAPTURE_0_FROM_I2S_2	0x0020
+/* CAPTURE_0_FROM_AC97_0		not implemented */
+#define CAPTURE_1_FROM_SPDIF	0x0080
+#define CAPTURE_2_FROM_I2S_2	0x0100
+#define CAPTURE_2_FROM_AC97_1	0x0200
+#define CAPTURE_3_FROM_I2S_3	0x0400
+#define MIDI_OUTPUT		0x0800
+#define MIDI_INPUT		0x1000
+#define AC97_CD_INPUT		0x2000
+#define AC97_FMIC_SWITCH	0x4000
+
 
 #endif //OS_MAIN_H

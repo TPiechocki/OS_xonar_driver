@@ -25,7 +25,6 @@
 
 
 #include "main.h"
-#include "oxygen.h"
 #include "oxygen_regs.h"
 
 /* Module description */
@@ -226,6 +225,8 @@ static int snd_xonar_probe(struct pci_dev *pci,
     struct snd_card *card;
     struct xonar *chip;
     // Arguments are: parent PCI device, card index and id, module ptr, size of the extra data and variable ptr to be filled
+
+    // TODO important move it somwhere else or remove
     err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
                        sizeof(*chip), &card);
     if (err < 0) {

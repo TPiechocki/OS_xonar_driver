@@ -17,6 +17,7 @@
 #include "oxygen_regs.h"
 #include "main.h"
 
+
 u8 xonar_read8(struct xonar *chip, unsigned int reg)
 {
 	return inb(chip->ioport + reg);

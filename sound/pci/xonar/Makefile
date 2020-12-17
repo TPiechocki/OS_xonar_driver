@@ -1,9 +1,19 @@
-obj-m    := main.o oxygen_io.o
+obj-m    :=  xonar.o
+xonar-objs := xonar_hardware.o xonar_lib.o oxygen_io.o main.o
+
+MY_CFLAGS += -g -DDEBUG
+ccflags-y += ${MY_CFLAGS}
+CC += ${MY_CFLAGS}
 
 KDIR    := /lib/modules/$(shell uname -r)/build
 
-default:
-	$(MAKE) -C $(KDIR) M=$(PWD) modules
+
+all:
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+
+debug:
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules 
+	EXTRA_CFLAGS="$(MY_CFLAGS)"
 
 clean:
-	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean

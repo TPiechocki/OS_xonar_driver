@@ -546,7 +546,7 @@
 #define CS4398_DEM_NONE		0x00
 #define CS4398_DEM_44100	0x04
 #define CS4398_DEM_48000	0x08
-#define CS4398_DEM_32000	0x0c'
+#define CS4398_DEM_32000	0x0c
 
 // Digital interface format - not used
 #define CS4398_DIF_MASK		0x70

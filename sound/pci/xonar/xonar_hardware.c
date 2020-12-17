@@ -64,7 +64,6 @@
 #define I2C_DEVICE_CS4398	0x9e	/* 10011, AD1=1, AD0=1, /W=0 */
 #define I2C_DEVICE_CS4362A	0x30	/* 001100, AD0=0, /W=0 */
 
-
 /*
  * Write set values into the hardware registers.
  */
@@ -73,7 +72,7 @@ static void cs43xx_registers_init(struct xonar *chip);
 /**
  * Initialize and set all needed hardware
  */
-static void xonar_dx_init(struct xonar *chip) {
+void xonar_dx_init(struct xonar *chip) {
     // XONAR DX
     struct xonar *data = chip;
     data->ext_power_reg = OXYGEN_GPI_DATA;
@@ -149,9 +148,10 @@ static void xonar_dx_init(struct xonar *chip) {
     snd_component_add(chip->card, "CS4362A");
     snd_component_add(chip->card, "CS5361");
 }
+EXPORT_SYMBOL(xonar_dx_init);
 
 static void cs4362a_write(struct xonar *chip, u8 reg, u8 value);
-static void xonar_dx_cleanup(struct xonar *chip)
+void xonar_dx_cleanup(struct xonar *chip)
 {
     // disable output from the card
     xonar_disable_output(chip);
@@ -160,7 +160,7 @@ static void xonar_dx_cleanup(struct xonar *chip)
     // OXYGEN things
     oxygen_clear_bits8(chip, OXYGEN_FUNCTION, OXYGEN_FUNCTION_RESET_CODEC);
 }
-
+EXPORT_SYMBOL(xonar_dx_cleanup);
 
 
 // HARDWARE WRITES

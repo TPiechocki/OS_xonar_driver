@@ -12,6 +12,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/spinlock.h>
+#include <linux/mutex.h>
+
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <linux/pci.h>
@@ -70,6 +73,8 @@ static int snd_xonar_free(struct xonar *chip)
     // release irq
     if (chip->irq >= 0)
         free_irq(chip->irq, chip);
+    // destroy mutex
+    mutex_destroy(&chip->mutex);
     // release IO region
     pci_release_regions(chip->pci);
     // disable the PCI entry
@@ -228,13 +233,18 @@ static int snd_xonar_probe(struct pci_dev *pci,
 
     // TODO important move it somwhere else or remove
     err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-                       sizeof(*chip), &card);
+                       sizeof(struct xonar), &card);    // TODO test this sizeof (replaced sizeof(*chip))
     if (err < 0) {
         return err;
     }
     // attach structures to the chip structure
+    chip = card->private_data;
     chip->card = card;
     chip->pci = pci;
+
+    // init spinlock and mutex
+    spin_lock_init(&chip->lock);
+    mutex_init(&chip->mutex);
     // initialize ac97 queue which is used on writes to ac97 device
     init_waitqueue_head(&chip->ac97_waitqueue);
 

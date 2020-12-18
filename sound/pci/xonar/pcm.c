@@ -13,6 +13,20 @@
 #include "oxygen_regs.h"
 
 
+// buffer limit sizes for pcm stream
+#define PERIOD_BYTES_MIN		64
+/* most DMA channels have a 16-bit counter for 32-bit words */
+#define BUFFER_BYTES_MAX		((1 << 16) * 4)
+/* the multichannel DMA channel has a 24-bit counter */
+#define BUFFER_BYTES_MAX_MULTICH	((1 << 24) * 4)
+
+#define DEFAULT_BUFFER_BYTES		(BUFFER_BYTES_MAX / 2)
+#define DEFAULT_BUFFER_BYTES_MULTICH	(1024 * 1024)
+
+#define FIFO_BYTES			256
+#define FIFO_BYTES_MULTICH		1024
+
+
 // PLAYBACK ONLY
 
 /* hardware definition for playback  */
@@ -29,11 +43,12 @@ static struct snd_pcm_hardware snd_xonar_playback_hw = {
         .rate_max =         48000,
         .channels_min =     2,
         .channels_max =     2,
-        .buffer_bytes_max = BUFFER_BYTES_MAX,
+        .buffer_bytes_max = BUFFER_BYTES_MAX_MULTICH,
         .period_bytes_min = PERIOD_BYTES_MIN,
-        .period_bytes_max = BUFFER_BYTES_MAX,
+        .period_bytes_max = BUFFER_BYTES_MAX_MULTICH,
         .periods_min =      1,
-        .periods_max =      BUFFER_BYTES_MAX / PERIOD_BYTES_MIN,
+        .periods_max =      BUFFER_BYTES_MAX_MULTICH / PERIOD_BYTES_MIN,
+        .fifo_size =        FIFO_BYTES_MULTICH
 };
 
 /* open callback for playback */
@@ -47,8 +62,8 @@ static int snd_xonar_playback_open(struct snd_pcm_substream *substream)
     chip->substream = substream;
 
     /* more hardware-initialization will be done here */
-    // TODO CHECK ASSUMPTION: PCM_AC97 is the chosen PCM
-    runtime->hw.fifo_size = 0;
+    // TODO CHECK ASSUMPTION: PCM_MULTICH is the chosen PCM
+    runtime->hw.channels_max = 2;
 
     // set step for buffer size changes
     err = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 32);
@@ -83,6 +98,32 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
                    params_buffer_bytes(hw_params) / 4 - 1);
     oxygen_write16(chip, OXYGEN_DMA_AC97_ADDRESS + 6,
                    params_period_bytes(hw_params) / 4 - 1);
+
+    // MULTICH TODO understand and rewrite for changes
+    mutex_lock(&chip->mutex);
+    spin_lock_irq(&chip->lock);
+    oxygen_write8_masked(chip, OXYGEN_PLAY_CHANNELS,
+                         OXYGEN_PLAY_CHANNELS_2,
+                         OXYGEN_PLAY_CHANNELS_MASK);
+    oxygen_write8_masked(chip, OXYGEN_PLAY_FORMAT,
+                         OXYGEN_RATE_48000 << OXYGEN_MULTICH_FORMAT_SHIFT,
+                         OXYGEN_MULTICH_FORMAT_MASK);
+    oxygen_write16_masked(chip, OXYGEN_I2S_MULTICH_FORMAT,
+                          OXYGEN_RATE_48000 |
+                          OXYGEN_I2S_FORMAT_LJUST |
+                          OXYGEN_I2S_MCLK(OXYGEN_MCLKS(256, 128, 128) >> 0) |
+                          OXYGEN_I2S_BITS_16,
+                          OXYGEN_I2S_RATE_MASK |
+                          OXYGEN_I2S_FORMAT_MASK |
+                          OXYGEN_I2S_MCLK_MASK |
+                          OXYGEN_I2S_BITS_MASK);
+    // oxygen_update_spdif_source(chip);
+    spin_unlock_irq(&chip->lock);
+
+    set_cs43xx_params(chip, hw_params);
+    //oxygen_update_dac_routing(chip);
+    mutex_unlock(&chip->mutex);
+
 
     /*snd_pcm_lib_malloc_pages(substream,
                                     params_buffer_bytes(hw_params));*/

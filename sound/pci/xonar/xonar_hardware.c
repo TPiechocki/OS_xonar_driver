@@ -162,6 +162,34 @@ void xonar_dx_cleanup(struct xonar *chip)
 }
 EXPORT_SYMBOL(xonar_dx_cleanup);
 
+static void cs4398_write_cached(struct xonar *chip, u8 reg, u8 value);
+static void cs4362a_write_cached(struct xonar *chip, u8 reg, u8 value);
+void set_cs43xx_params(struct xonar *chip, struct snd_pcm_hw_params *params)
+{
+    struct xonar *data = chip;
+    u8 cs4398_fm, cs4362a_fm;
+
+    // set single/double/quad speed of DAC sample rate
+    if (params_rate(params) <= 50000) {
+        cs4398_fm = CS4398_FM_SINGLE;
+        cs4362a_fm = CS4362A_FM_SINGLE;
+    } else if (params_rate(params) <= 100000) {
+        cs4398_fm = CS4398_FM_DOUBLE;
+        cs4362a_fm = CS4362A_FM_DOUBLE;
+    } else {
+        cs4398_fm = CS4398_FM_QUAD;
+        cs4362a_fm = CS4362A_FM_QUAD;
+    }
+    cs4398_fm |= CS4398_DEM_NONE | CS4398_DIF_LJUST;
+    cs4398_write_cached(chip, 2, cs4398_fm);
+    cs4362a_fm |= data->cs4362a_regs[6] & ~CS4362A_FM_MASK;
+    cs4362a_write_cached(chip, 6, cs4362a_fm);
+    cs4362a_write_cached(chip, 12, cs4362a_fm);
+    cs4362a_fm &= CS4362A_FM_MASK;
+    cs4362a_fm |= data->cs4362a_regs[9] & ~CS4362A_FM_MASK;
+    cs4362a_write_cached(chip, 9, cs4362a_fm);
+}
+
 
 // HARDWARE WRITES
 

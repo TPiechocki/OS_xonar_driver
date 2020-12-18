@@ -2,11 +2,10 @@
 // Created by Tomasz Piechocki on 13/12/2020.
 //
 
-#include <sound/pcm.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <sound/core.h>
 #include <linux/pci.h>
+#include <sound/control.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
 #include <sound/pcm_params.h>
 
 #include "main.h"
@@ -231,12 +230,12 @@ static struct snd_pcm_ops snd_xonar_playback_ops = {
 
 // TODO redo init
 /* create a single playback stereo pcm device */
-static int snd_xonar_new_pcm(struct xonar *chip)
+int snd_xonar_new_pcm(struct xonar *chip)
 {
     struct snd_pcm *pcm;
     int err;
     // allocate pcm instance; 3 argument is pcm instance id (count from 0), then number of playback devices and
-    //      capture devieces
+    //      capture devices
     err = snd_pcm_new(chip->card, "Xonar", 0, 1, 0, &pcm);
     if (err < 0)
         return err;
@@ -251,8 +250,15 @@ static int snd_xonar_new_pcm(struct xonar *chip)
 
     /* pre-allocation of buffers */
     /* NOTE: this may fail */
-    snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+    /* snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
                                           snd_dma_pci_data(chip->pci),
-                                          DEFAULT_BUFFER_BYTES, BUFFER_BYTES_MAX);
+                                          DEFAULT_BUFFER_BYTES, BUFFER_BYTES_MAX); */
+
+    snd_pcm_set_managed_buffer(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
+                               SNDRV_DMA_TYPE_DEV,
+                               &chip->pci->dev,
+                               DEFAULT_BUFFER_BYTES_MULTICH,
+                               BUFFER_BYTES_MAX_MULTICH);
+
     return 0;
 }

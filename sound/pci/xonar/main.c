@@ -194,6 +194,11 @@ static int snd_xonar_create(struct snd_card *card,
     chip->irq = pci->irq;
 
     // TODO init pcm_oxygen and(?) mixer_oxygen
+    err = oxygen_pcm_init(chip);
+    if (err < 0) {
+        snd_card_free(card);
+        return err;
+    }
 
     // Register sound device with filled data. Device is the part of the card which perform operations.
     // arguments are: already created card struct, level of the device, pointer to fill the device's data and callbacks
@@ -231,9 +236,8 @@ static int snd_xonar_probe(struct pci_dev *pci,
     struct xonar *chip;
     // Arguments are: parent PCI device, card index and id, module ptr, size of the extra data and variable ptr to be filled
 
-    // TODO important move it somwhere else or remove
     err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-                       sizeof(struct xonar), &card);    // TODO test this sizeof (replaced sizeof(*chip))
+                       sizeof(struct xonar), &card);
     if (err < 0) {
         return err;
     }

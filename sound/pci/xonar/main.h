@@ -157,6 +157,9 @@ static inline void oxygen_ac97_clear_bits(struct xonar *chip,
 }
 
 
+// PCM INIT
+int snd_xonar_new_pcm(struct xonar *chip);
+
 // xonar_hardware declarations
 void xonar_dx_init(struct xonar *chip);
 void xonar_dx_cleanup(struct xonar *chip);

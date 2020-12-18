@@ -137,14 +137,14 @@ static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id)
  * @return errors are negative values
  */
 static int snd_xonar_create(struct snd_card *card,
-        struct pci_dev *pci, struct xonar **rchip) {
+        struct pci_dev *pci) {
     struct xonar *chip;
     int err;
     static struct snd_device_ops ops = {
             .dev_free = snd_xonar_dev_free,
     };
 
-    *rchip = card->private_data;
+    chip = card->private_data;
 
     /* initialize PCI entry */
     err = pci_enable_device(pci);
@@ -208,7 +208,6 @@ static int snd_xonar_create(struct snd_card *card,
         return err;
     }
 
-    *rchip = chip;
     return 0;
 }
 /**
@@ -256,7 +255,7 @@ static int snd_xonar_probe(struct pci_dev *pci,
     // Create the main component. Look for snd_xonar_create.
     // Fill chip variable with chip data, structure from the main.h
     // Set the hardware, set the interrupts etc.
-    err = snd_xonar_create(card, pci, &chip);
+    err = snd_xonar_create(card, pci);
     if (err < 0) {
         // if error then free the card allocated earlier
         snd_card_free(card);

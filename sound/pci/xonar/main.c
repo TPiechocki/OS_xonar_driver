@@ -194,7 +194,7 @@ static int snd_xonar_create(struct snd_card *card,
     chip->irq = pci->irq;
 
     // TODO init pcm_oxygen and(?) mixer_oxygen
-    err = oxygen_pcm_init(chip);
+    err = snd_xonar_new_pcm(chip);
     if (err < 0) {
         snd_card_free(card);
         return err;

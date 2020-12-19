@@ -124,8 +124,8 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
     mutex_unlock(&chip->mutex);
 
 
-    /*snd_pcm_lib_malloc_pages(substream,
-                                    params_buffer_bytes(hw_params));*/
+    snd_pcm_lib_malloc_pages(substream,
+                                    params_buffer_bytes(hw_params));
     return 0;
 }
 
@@ -144,7 +144,7 @@ static int snd_xonar_pcm_hw_free(struct snd_pcm_substream *substream)
     oxygen_clear_bits8(chip, OXYGEN_DMA_FLUSH, channel_mask);
     spin_unlock_irq(&chip->lock);
 
-    /* snd_pcm_lib_free_pages(substream) */
+    snd_pcm_lib_free_pages(substream);
     return 0;
 }
 
@@ -250,15 +250,15 @@ int snd_xonar_new_pcm(struct xonar *chip)
 
     /* pre-allocation of buffers */
     /* NOTE: this may fail */
-    /* snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+    snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
                                           snd_dma_pci_data(chip->pci),
-                                          DEFAULT_BUFFER_BYTES, BUFFER_BYTES_MAX); */
+                                          DEFAULT_BUFFER_BYTES, BUFFER_BYTES_MAX);
 
-    snd_pcm_set_managed_buffer(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
+    /*snd_pcm_set_managed_buffer(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
                                SNDRV_DMA_TYPE_DEV,
                                &chip->pci->dev,
                                DEFAULT_BUFFER_BYTES_MULTICH,
-                               BUFFER_BYTES_MAX_MULTICH);
+                               BUFFER_BYTES_MAX_MULTICH);*/
 
     return 0;
 }

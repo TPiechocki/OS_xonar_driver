@@ -100,6 +100,8 @@ static int snd_xonar_playback_close(struct snd_pcm_substream *substream)
 static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
                                    struct snd_pcm_hw_params *hw_params)
 {
+    int retcode = snd_pcm_lib_malloc_pages(substream,
+                                           params_buffer_bytes(hw_params));
     struct xonar *chip = snd_pcm_substream_chip(substream);
 
     oxygen_write32(chip, OXYGEN_DMA_MULTICH_ADDRESS,
@@ -135,8 +137,7 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
     mutex_unlock(&chip->mutex);
 
 
-    return snd_pcm_lib_malloc_pages(substream,
-                                    params_buffer_bytes(hw_params));;
+    return retcode;
 }
 
 /* hw_free callback */

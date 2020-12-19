@@ -37,11 +37,11 @@ static struct snd_pcm_hardware snd_xonar_playback_hw = {
         // TODO optionally pause and resume flags
         // TODO optionally SYNC_START flag
         .formats =          SNDRV_PCM_FMTBIT_S16_LE,
-        .rates =            SNDRV_PCM_RATE_48000,
-        .rate_min =         48000,
-        .rate_max =         48000,
+        .rates =            SNDRV_PCM_RATE_44100,
+        .rate_min =         44100,
+        .rate_max =         44100,
         .channels_min =     2,
-        .channels_max =     2,
+        .channels_max =     8,
         .buffer_bytes_max = BUFFER_BYTES_MAX_MULTICH,
         .period_bytes_min = PERIOD_BYTES_MIN,
         .period_bytes_max = BUFFER_BYTES_MAX_MULTICH,
@@ -65,12 +65,23 @@ static int snd_xonar_playback_open(struct snd_pcm_substream *substream)
     runtime->hw.channels_max = 2;
 
     // set step for buffer size changes
-    err = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 32);
+    err = snd_pcm_hw_constraint_step(runtime, 0,
+                                     SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 32);
+    if (err < 0)
+        return err;
+    err = snd_pcm_hw_constraint_step(runtime, 0,
+                                     SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 32);
+    if (err < 0)
+        return err;
+
+    err = snd_pcm_hw_constraint_step(runtime, 0,
+                                     SNDRV_PCM_HW_PARAM_CHANNELS,
+                                     2);
     if (err < 0)
         return err;
 
     snd_pcm_set_sync(substream);
-
+    chip->substream = substream;
 
     return 0;
 }
@@ -102,13 +113,13 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
     mutex_lock(&chip->mutex);
     spin_lock_irq(&chip->lock);
     oxygen_write8_masked(chip, OXYGEN_PLAY_CHANNELS,
-                         OXYGEN_PLAY_CHANNELS_2,
+                         OXYGEN_PLAY_CHANNELS_4,
                          OXYGEN_PLAY_CHANNELS_MASK);
     oxygen_write8_masked(chip, OXYGEN_PLAY_FORMAT,
-                         OXYGEN_RATE_48000 << OXYGEN_MULTICH_FORMAT_SHIFT,
+                         OXYGEN_FORMAT_16 << OXYGEN_MULTICH_FORMAT_SHIFT,
                          OXYGEN_MULTICH_FORMAT_MASK);
     oxygen_write16_masked(chip, OXYGEN_I2S_MULTICH_FORMAT,
-                          OXYGEN_RATE_48000 |
+                          OXYGEN_RATE_44100 |
                           OXYGEN_I2S_FORMAT_LJUST |
                           OXYGEN_I2S_MCLK(OXYGEN_MCLKS(256, 128, 128) >> 0) |
                           OXYGEN_I2S_BITS_16,

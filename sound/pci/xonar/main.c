@@ -196,10 +196,20 @@ static int snd_xonar_create(struct snd_card *card,
     if (err < 0) {
         kfree(chip);
         pci_disable_device(pci);
+        snd_card_free(card);
         return err;
     }
-    // TODO optionally add memory length check like in oxygen
+    if (!(pci_resource_flags(pci, 0) & IORESOURCE_IO) ||
+        pci_resource_len(pci, 0) < OXYGEN_IO_SIZE) {
+        dev_err(card->dev, "invalid PCI I/O range\n");
+        err = -ENXIO;
+        pci_release_regions(pci);
+        pci_disable_device(pci);
+        snd_card_free(card);
+        return err;
+    }
     chip->ioport = pci_resource_start(pci, 0);
+
 
     // TODO PCI MASTER and free card callback
     // enable bus-mastering(?) for the device; it allows the bus to initiate DMA transactions

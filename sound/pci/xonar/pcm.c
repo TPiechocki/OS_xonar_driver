@@ -91,11 +91,11 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
 {
     struct xonar *chip = snd_pcm_substream_chip(substream);
 
-    oxygen_write32(chip, OXYGEN_DMA_AC97_ADDRESS,
+    oxygen_write32(chip, OXYGEN_DMA_MULTICH_ADDRESS,
                    (u32)substream->runtime->dma_addr);
-    oxygen_write16(chip, OXYGEN_DMA_AC97_ADDRESS + 4,
+    oxygen_write16(chip, OXYGEN_DMA_MULTICH_COUNT,
                    params_buffer_bytes(hw_params) / 4 - 1);
-    oxygen_write16(chip, OXYGEN_DMA_AC97_ADDRESS + 6,
+    oxygen_write16(chip, OXYGEN_DMA_MULTICH_TCOUNT,
                    params_period_bytes(hw_params) / 4 - 1);
 
     // MULTICH TODO understand and rewrite for changes
@@ -133,7 +133,7 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
 static int snd_xonar_pcm_hw_free(struct snd_pcm_substream *substream)
 {
     struct xonar *chip = snd_pcm_substream_chip(substream);
-    unsigned int channel = PCM_AC97;
+    unsigned int channel = PCM_MULTICH;
     unsigned int channel_mask = 1 << channel;
 
     spin_lock_irq(&chip->lock);
@@ -152,7 +152,7 @@ static int snd_xonar_pcm_hw_free(struct snd_pcm_substream *substream)
 static int snd_xonar_pcm_prepare(struct snd_pcm_substream *substream)
 {
     struct xonar *chip = snd_pcm_substream_chip(substream);
-    unsigned int channel = PCM_AC97;
+    unsigned int channel = PCM_MULTICH;
     unsigned int channel_mask = 1 << channel;
 
     /* set up the hardware with the current configuration
@@ -212,7 +212,7 @@ static snd_pcm_uframes_t snd_xonar_pcm_pointer(struct snd_pcm_substream *substre
     unsigned int current_ptr;
 
     /* get the current hardware pointer */
-    current_ptr = xonar_read32(chip, OXYGEN_DMA_AC97_ADDRESS);
+    current_ptr = xonar_read32(chip, OXYGEN_DMA_MULTICH_ADDRESS);
     return bytes_to_frames(runtime, current_ptr - (u32)runtime->dma_addr);
 }
 

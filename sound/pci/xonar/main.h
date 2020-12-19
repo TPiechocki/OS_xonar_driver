@@ -184,6 +184,7 @@ int xonar_gpio_bit_switch_get(struct snd_kcontrol *ctl,
                               struct snd_ctl_elem_value *value);
 int xonar_gpio_bit_switch_put(struct snd_kcontrol *ctl,
                               struct snd_ctl_elem_value *value);
+void xonar_ext_power_gpio_changed(struct xonar *chip);
 
 
 // OXYGEN DEFINES

@@ -92,6 +92,15 @@ static int snd_xonar_dev_free(struct snd_device *device)
     return snd_xonar_free(device->device_data);
 }
 
+static void xonar_gpio_changed(struct work_struct *work)
+{
+    struct xonar *chip = container_of(work, struct xonar, gpio_work);
+
+    xonar_ext_power_gpio_changed(chip);
+
+
+}
+
 /**
  * Interrupt handler
  * @param irq - irq number
@@ -112,16 +121,39 @@ static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id)
     spin_lock(&chip->lock);
 
     // TODO set interrupt mask
+    unsigned int clear = status & (OXYGEN_CHANNEL_A |
+                      OXYGEN_CHANNEL_B |
+                      OXYGEN_CHANNEL_C |
+                      OXYGEN_CHANNEL_SPDIF |
+                      OXYGEN_CHANNEL_MULTICH |
+                      OXYGEN_CHANNEL_AC97 |
+                      OXYGEN_INT_SPDIF_IN_DETECT |
+                      OXYGEN_INT_GPIO |
+                      OXYGEN_INT_AC97);
+    if (clear) {
+        if (clear & OXYGEN_INT_SPDIF_IN_DETECT)
+            chip->interrupt_mask &= ~OXYGEN_INT_SPDIF_IN_DETECT;
+        oxygen_write16(chip, OXYGEN_INTERRUPT_MASK,
+                       chip->interrupt_mask & ~clear);
+        oxygen_write16(chip, OXYGEN_INTERRUPT_MASK,
+                       chip->interrupt_mask);
+    }
 
     /* call updater, unlock before it */
     spin_unlock(&chip->lock);
 
-    // TODO check chip->pcm_running(?)
-    snd_pcm_period_elapsed(chip->substream);
+    unsigned int elapsed_streams = status & chip->pcm_running;
+    if (elapsed_streams && chip->substream)
+        snd_pcm_period_elapsed(chip->substream);
     spin_lock(&chip->lock);
     /* acknowledge the interrupt if necessary */
 
     // TODO perform tasks if needed
+    if (status & OXYGEN_INT_GPIO)
+        schedule_work(&chip->gpio_work);
+
+    if (status & OXYGEN_INT_AC97)
+        wake_up(&chip->ac97_waitqueue);
 
     spin_unlock(&chip->lock);
     return IRQ_HANDLED;
@@ -249,6 +281,7 @@ static int snd_xonar_probe(struct pci_dev *pci,
     spin_lock_init(&chip->lock);
     mutex_init(&chip->mutex);
     // initialize ac97 queue which is used on writes to ac97 device
+    INIT_WORK(&chip->gpio_work, xonar_gpio_changed);
     init_waitqueue_head(&chip->ac97_waitqueue);
 
 

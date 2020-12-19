@@ -46,7 +46,7 @@ void xonar_disable_output(struct xonar *chip)
 }
 EXPORT_SYMBOL(xonar_disable_output);
 
-static void xonar_ext_power_gpio_changed(struct xonar *chip)
+void xonar_ext_power_gpio_changed(struct xonar *chip)
 {
 	struct xonar *data = chip;
 	u8 has_power;

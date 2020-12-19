@@ -75,6 +75,16 @@ static void cs43xx_registers_init(struct xonar *chip);
 void xonar_dx_init(struct xonar *chip) {
     // XONAR DX
     struct xonar *data = chip;
+
+    chip->device_config = PLAYBACK_0_TO_I2S;
+    chip->dac_mclks = OXYGEN_MCLKS(256, 128, 128),
+    chip->adc_mclks = OXYGEN_MCLKS(256, 128, 128),
+    chip->dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+    chip->adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+    chip->function_flags = 0;
+    chip->misc_flags = 0;
+
+
     data->ext_power_reg = OXYGEN_GPI_DATA;
     data->ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
     data->ext_power_bit = GPI_EXT_POWER;

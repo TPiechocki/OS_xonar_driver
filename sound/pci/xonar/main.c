@@ -278,7 +278,7 @@ static int snd_xonar_probe(struct pci_dev *pci,
     // Arguments are: parent PCI device, card index and id, module ptr, size of the extra data and variable ptr to be filled
 
     err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-                       sizeof(struct xonar), &card);
+                       sizeof(*chip), &card);
     if (err < 0) {
         return err;
     }
@@ -389,12 +389,12 @@ static void oxygen_init(struct xonar *chip)
 
     chip->dac_routing = 1;
     for (i = 0; i < 8; ++i)
-        chip->dac_volume[i] = chip->dac_volume_min;
+        chip->dac_volume[i] = chip->dac_volume_max;
     chip->dac_mute = 1;
-    chip->spdif_playback_enable = 0;
+    /*chip->spdif_playback_enable = 0;
     chip->spdif_bits = OXYGEN_SPDIF_C | OXYGEN_SPDIF_ORIGINAL |
                        (IEC958_AES1_CON_PCM_CODER << OXYGEN_SPDIF_CATEGORY_SHIFT);
-    chip->spdif_pcm_bits = chip->spdif_bits;
+    chip->spdif_pcm_bits = chip->spdif_bits;*/
 
     if (!(xonar_read8(chip, OXYGEN_REVISION) & OXYGEN_REVISION_2))
         oxygen_set_bits8(chip, OXYGEN_MISC,
@@ -497,7 +497,7 @@ static void oxygen_init(struct xonar *chip)
                             OXYGEN_SPDIF_SENSE_MASK |
                             OXYGEN_SPDIF_LOCK_MASK |
                             OXYGEN_SPDIF_RATE_MASK);
-    oxygen_write32(chip, OXYGEN_SPDIF_OUTPUT_BITS, chip->spdif_bits);
+    //oxygen_write32(chip, OXYGEN_SPDIF_OUTPUT_BITS, chip->spdif_bits);
     oxygen_write16(chip, OXYGEN_2WIRE_BUS_STATUS,
                    OXYGEN_2WIRE_LENGTH_8 |
                    OXYGEN_2WIRE_INTERRUPT_MASK |

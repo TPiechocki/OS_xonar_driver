@@ -194,7 +194,7 @@ static int snd_xonar_create(struct snd_card *card,
     // allocate I/O port
     err = pci_request_regions(pci, "Xonar");
     if (err < 0) {
-        kfree(chip);
+        dev_err(card->dev, "cannot reserve PCI resources\n");
         pci_disable_device(pci);
         snd_card_free(card);
         return err;

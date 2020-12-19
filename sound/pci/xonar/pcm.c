@@ -164,9 +164,6 @@ static int snd_xonar_pcm_prepare(struct snd_pcm_substream *substream)
     unsigned int channel = PCM_MULTICH;
     unsigned int channel_mask = 1 << channel;
 
-    /* set up the hardware with the current configuration
-     * for example...
-     */
     spin_lock_irq(&chip->lock);
     oxygen_set_bits8(chip, OXYGEN_DMA_FLUSH, channel_mask);
     oxygen_clear_bits8(chip, OXYGEN_DMA_FLUSH, channel_mask);
@@ -222,6 +219,7 @@ static snd_pcm_uframes_t snd_xonar_pcm_pointer(struct snd_pcm_substream *substre
 
     /* get the current hardware pointer */
     current_ptr = xonar_read32(chip, OXYGEN_DMA_MULTICH_ADDRESS);
+    printk(KERN_ALERT "POINTER: %d", bytes_to_frames(runtime, current_ptr - (u32)runtime->dma_addr);
     return bytes_to_frames(runtime, current_ptr - (u32)runtime->dma_addr);
 }
 

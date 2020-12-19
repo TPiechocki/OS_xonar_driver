@@ -33,7 +33,8 @@ static struct snd_pcm_hardware snd_xonar_playback_hw = {
         .info = (SNDRV_PCM_INFO_MMAP |
                  SNDRV_PCM_INFO_INTERLEAVED |
                  SNDRV_PCM_INFO_BLOCK_TRANSFER |
-                 SNDRV_PCM_INFO_MMAP_VALID),
+                 SNDRV_PCM_INFO_MMAP_VALID |
+                 SNDRV_PCM_INFO_PAUSE),
         // TODO optionally pause and resume flags
         // TODO optionally SYNC_START flag
         .formats =          SNDRV_PCM_FMTBIT_S16_LE,
@@ -183,15 +184,18 @@ static int snd_xonar_pcm_trigger(struct snd_pcm_substream *substream,
                                  int cmd)
 {
     struct xonar *chip = snd_pcm_substream_chip(substream);
-    struct snd_pcm_substream *s;
     unsigned int mask = 0;
-    // TODO optionally, used for pause
     int pausing;
 
     switch (cmd) {
         case SNDRV_PCM_TRIGGER_START:
         case SNDRV_PCM_TRIGGER_STOP:
+        case SNDRV_PCM_TRIGGER_SUSPEND:
             pausing = 0;
+            break;
+        case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+        case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+            pausing = 1;
             break;
         default:
             return -EINVAL;
@@ -206,6 +210,11 @@ static int snd_xonar_pcm_trigger(struct snd_pcm_substream *substream,
         else    // if stop or suspend signal
             chip->pcm_running &= ~mask;
         oxygen_write8(chip, OXYGEN_DMA_STATUS, chip->pcm_running);
+    } else {        // if pause
+        if (cmd == SNDRV_PCM_TRIGGER_PAUSE_PUSH)
+            oxygen_set_bits8(chip, OXYGEN_DMA_PAUSE, mask);
+        else
+            oxygen_clear_bits8(chip, OXYGEN_DMA_PAUSE, mask);
     }
     spin_unlock(&chip->lock);
     return 0;
@@ -220,7 +229,7 @@ static snd_pcm_uframes_t snd_xonar_pcm_pointer(struct snd_pcm_substream *substre
 
     /* get the current hardware pointer */
     current_ptr = xonar_read32(chip, OXYGEN_DMA_MULTICH_ADDRESS);
-    printk(KERN_ALERT "POINTER: %d", bytes_to_frames(runtime, current_ptr - (u32)runtime->dma_addr);
+    printk(KERN_ALERT "POINTER: %d", current_ptr - (u32)runtime->dma_addr);
     return bytes_to_frames(runtime, current_ptr - (u32)runtime->dma_addr);
 }
 
@@ -261,12 +270,6 @@ int snd_xonar_new_pcm(struct xonar *chip)
     snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
                                           snd_dma_pci_data(chip->pci),
                                           DEFAULT_BUFFER_BYTES_MULTICH, BUFFER_BYTES_MAX_MULTICH);
-
-    /*snd_pcm_set_managed_buffer(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
-                               SNDRV_DMA_TYPE_DEV,
-                               &chip->pci->dev,
-                               DEFAULT_BUFFER_BYTES_MULTICH,
-                               BUFFER_BYTES_MAX_MULTICH);*/
 
     return 0;
 }

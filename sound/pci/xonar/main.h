@@ -26,7 +26,14 @@ struct xonar {
     struct snd_card *card;
     // data connected with PCM (Pulse-Code Modulation) stream
     struct snd_pcm *pcm;
+    // only playback substream
     struct snd_pcm_substream *substream;
+    /**
+     * mixer controls TODO update count
+     * 0 - volume
+     */
+    struct snd_kcontrol *controls[1];
+
 
     // hardware registers
     unsigned long ioport;
@@ -160,14 +167,21 @@ static inline void oxygen_ac97_clear_bits(struct xonar *chip,
 // PCM INIT
 int snd_xonar_new_pcm(struct xonar *chip);
 
+// mixer init
+int oxygen_mixer_init(struct xonar *chip);
+
 // xonar_hardware declarations
 void xonar_dx_init(struct xonar *chip);
 void xonar_dx_cleanup(struct xonar *chip);
+
 // set internal DACs control registers
 void set_cs43xx_params(struct xonar *chip, struct snd_pcm_hw_params *params);
-
 // and oxygen hardware as well
 static void oxygen_init(struct xonar *chip);
+
+// xonar mixer controls
+void update_xonar_volume(struct xonar *chip);
+void update_xonar_volume(struct xonar *chip);
 
 // xonar_lib helpers
 #define GPI_EXT_POWER		0x01

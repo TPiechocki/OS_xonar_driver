@@ -65,8 +65,10 @@ MODULE_DEVICE_TABLE(pci, snd_xonar_id);
 /**
  * Chip-specific destructor
  */
-static int snd_xonar_free(struct xonar *chip)
+static void snd_xonar_free(struct snd_card *card)
 {
+    struct xonar *chip = card->private_data;
+
     /* disable hardware here if any */
     // TODO /* (not implemented in this document) */
 
@@ -185,12 +187,6 @@ static int snd_xonar_create(struct snd_card *card,
     /* check PCI availability here aka set DMA ask */
     // I don't see this part in oxygen module so I skip this.
 
-    chip->card = card;
-
-    /* rest of initialization here; will be implemented
-     * later, see "PCI Resource Management"
-     */
-
     // allocate I/O port
     err = pci_request_regions(pci, "Xonar");
     if (err < 0) {
@@ -211,16 +207,15 @@ static int snd_xonar_create(struct snd_card *card,
     chip->ioport = pci_resource_start(pci, 0);
 
 
-    // TODO PCI MASTER and free card callback
     // enable bus-mastering(?) for the device; it allows the bus to initiate DMA transactions
     pci_set_master(pci);
+    card->private_free = snd_xonar_free;
 
     // TODO(?) configure PCIE bridge
 
-    // TODO oxygen init CHECK
+    // init oxygen hardware
     oxygen_init(chip);
-
-    // TODO xonar init CHECK
+    // init xonar DACs
     xonar_dx_init(chip);
 
 
@@ -235,12 +230,13 @@ static int snd_xonar_create(struct snd_card *card,
     }
     chip->irq = pci->irq;
 
-    // TODO init pcm_oxygen and(?) mixer_oxygen
     err = snd_xonar_new_pcm(chip);
     if (err < 0) {
         snd_card_free(card);
         return err;
     }
+
+    // TODO init mixer_oxygen
 
     // Register sound device with filled data. Device is the part of the card which perform operations.
     // arguments are: already created card struct, level of the device, pointer to fill the device's data and callbacks
@@ -390,7 +386,7 @@ static void oxygen_init(struct xonar *chip)
     chip->dac_routing = 1;
     for (i = 0; i < 8; ++i)
         chip->dac_volume[i] = chip->dac_volume_max;
-    chip->dac_mute = 1;
+    chip->dac_mute = 0;     // check which is muted
     /*chip->spdif_playback_enable = 0;
     chip->spdif_bits = OXYGEN_SPDIF_C | OXYGEN_SPDIF_ORIGINAL |
                        (IEC958_AES1_CON_PCM_CODER << OXYGEN_SPDIF_CATEGORY_SHIFT);
@@ -403,6 +399,8 @@ static void oxygen_init(struct xonar *chip)
     i = xonar_read16(chip, OXYGEN_AC97_CONTROL);
     chip->has_ac97_0 = (i & OXYGEN_AC97_CODEC_0) != 0;
     chip->has_ac97_1 = (i & OXYGEN_AC97_CODEC_1) != 0;
+
+    printk(KERN_ERR "AC97s %d %d", chip->has_ac97_0, chip->has_ac97_1);
 
     oxygen_write8_masked(chip, OXYGEN_FUNCTION,
                          OXYGEN_FUNCTION_RESET_CODEC |
@@ -439,61 +437,26 @@ static void oxygen_init(struct xonar *chip)
                    OXYGEN_I2S_BITS_16 |
                    OXYGEN_I2S_MASTER |
                    OXYGEN_I2S_BCLK_64);
-    if (chip->device_config & CAPTURE_0_FROM_I2S_1)
-        oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
-                       OXYGEN_RATE_48000 |
-                       chip->adc_i2s_format |
-                       OXYGEN_I2S_MCLK(chip->adc_mclks) |
-                       OXYGEN_I2S_BITS_16 |
-                       OXYGEN_I2S_MASTER |
-                       OXYGEN_I2S_BCLK_64);
-    else
-        oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
+
+
+    oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
                        OXYGEN_I2S_MASTER |
                        OXYGEN_I2S_MUTE_MCLK);
-    if (chip->device_config & (CAPTURE_0_FROM_I2S_2 |
-                                     CAPTURE_2_FROM_I2S_2))
-        oxygen_write16(chip, OXYGEN_I2S_B_FORMAT,
-                       OXYGEN_RATE_48000 |
-                       chip->adc_i2s_format |
-                       OXYGEN_I2S_MCLK(chip->adc_mclks) |
-                       OXYGEN_I2S_BITS_16 |
-                       OXYGEN_I2S_MASTER |
-                       OXYGEN_I2S_BCLK_64);
-    else
-        oxygen_write16(chip, OXYGEN_I2S_B_FORMAT,
+
+
+    oxygen_write16(chip, OXYGEN_I2S_B_FORMAT,
                        OXYGEN_I2S_MASTER |
                        OXYGEN_I2S_MUTE_MCLK);
-    if (chip->device_config & CAPTURE_3_FROM_I2S_3)
-        oxygen_write16(chip, OXYGEN_I2S_C_FORMAT,
-                       OXYGEN_RATE_48000 |
-                       chip->adc_i2s_format |
-                       OXYGEN_I2S_MCLK(chip->adc_mclks) |
-                       OXYGEN_I2S_BITS_16 |
-                       OXYGEN_I2S_MASTER |
-                       OXYGEN_I2S_BCLK_64);
-    else
-        oxygen_write16(chip, OXYGEN_I2S_C_FORMAT,
+
+    oxygen_write16(chip, OXYGEN_I2S_C_FORMAT,
                        OXYGEN_I2S_MASTER |
                        OXYGEN_I2S_MUTE_MCLK);
+
     oxygen_clear_bits32(chip, OXYGEN_SPDIF_CONTROL,
                         OXYGEN_SPDIF_OUT_ENABLE |
                         OXYGEN_SPDIF_LOOPBACK);
-    if (chip->device_config & CAPTURE_1_FROM_SPDIF)
-        oxygen_write32_masked(chip, OXYGEN_SPDIF_CONTROL,
-                              OXYGEN_SPDIF_SENSE_MASK |
-                              OXYGEN_SPDIF_LOCK_MASK |
-                              OXYGEN_SPDIF_RATE_MASK |
-                              OXYGEN_SPDIF_LOCK_PAR |
-                              OXYGEN_SPDIF_IN_CLOCK_96,
-                              OXYGEN_SPDIF_SENSE_MASK |
-                              OXYGEN_SPDIF_LOCK_MASK |
-                              OXYGEN_SPDIF_RATE_MASK |
-                              OXYGEN_SPDIF_SENSE_PAR |
-                              OXYGEN_SPDIF_LOCK_PAR |
-                              OXYGEN_SPDIF_IN_CLOCK_MASK);
-    else
-        oxygen_clear_bits32(chip, OXYGEN_SPDIF_CONTROL,
+
+    oxygen_clear_bits32(chip, OXYGEN_SPDIF_CONTROL,
                             OXYGEN_SPDIF_SENSE_MASK |
                             OXYGEN_SPDIF_LOCK_MASK |
                             OXYGEN_SPDIF_RATE_MASK);
@@ -502,7 +465,7 @@ static void oxygen_init(struct xonar *chip)
                    OXYGEN_2WIRE_LENGTH_8 |
                    OXYGEN_2WIRE_INTERRUPT_MASK |
                    OXYGEN_2WIRE_SPEED_STANDARD);
-    oxygen_clear_bits8(chip, OXYGEN_MPU401_CONTROL, OXYGEN_MPU401_LOOPBACK);
+    //oxygen_clear_bits8(chip, OXYGEN_MPU401_CONTROL, OXYGEN_MPU401_LOOPBACK);
     oxygen_write8(chip, OXYGEN_GPI_INTERRUPT_MASK, 0);
     oxygen_write16(chip, OXYGEN_GPIO_INTERRUPT_MASK, 0);
     oxygen_write16(chip, OXYGEN_PLAY_ROUTING,

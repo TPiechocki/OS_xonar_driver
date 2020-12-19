@@ -290,9 +290,31 @@ void update_xonar_volume(struct xonar *chip)
     cs4398_write_cached(chip, 5, (127 - chip->dac_volume[0]) * 2);
     cs4398_write_cached(chip, 6, (127 - chip->dac_volume[1]) * 2);
 
-
-    // update volume on rest of the inputs
+    // for the rest of the outs
+    // check if should be muted and set mute flag if needed
     mute = chip->dac_mute ? CS4362A_MUTE : 0;
+    // update sound vol/mute
+    for (i = 0; i < 6; ++i)
+        cs4362a_write_cached(chip, 7 + i + i / 2,
+                             (127 - chip->dac_volume[2 + i]) | mute);
+}
+
+void update_xonar_mute(struct xonar *chip) {
+    u8 reg, mute;
+    int i;
+
+    // normal "mute" register for front playback
+    reg = CS4398_MUTEP_LOW | CS4398_PAMUTE;
+    // if mute than add mute flags
+    if (chip->dac_mute)
+        reg |= CS4398_MUTE_B | CS4398_MUTE_A;
+    // write created register val
+    cs4398_write_cached(chip, 4, reg);
+
+    // for the rest of the outs
+    // check if should be muted and set mute flag if needed
+    mute = chip->dac_mute ? CS4362A_MUTE : 0;
+    // update sound vol/mute
     for (i = 0; i < 6; ++i)
         cs4362a_write_cached(chip, 7 + i + i / 2,
                              (127 - chip->dac_volume[2 + i]) | mute);

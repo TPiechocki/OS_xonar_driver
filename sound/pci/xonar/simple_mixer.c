@@ -53,6 +53,33 @@ static int xonar_vol_put(struct snd_kcontrol *ctl,
     return changed;
 }
 
+static int xonar_mute_get(struct snd_kcontrol *ctl,
+                        struct snd_ctl_elem_value *value)
+{
+    struct xonar *chip = ctl->private_data;
+
+    mutex_lock(&chip->mutex);
+    value->value.integer.value[0] = !chip->dac_mute;
+    mutex_unlock(&chip->mutex);
+    return 0;
+}
+
+static int xonar_mute_put(struct snd_kcontrol *ctl,
+                        struct snd_ctl_elem_value *value)
+{
+    struct xonar *chip = ctl->private_data;
+    int changed;
+
+    mutex_lock(&chip->mutex);
+    changed = (!value->value.integer.value[0]) != chip->dac_mute;
+    if (changed) {
+        chip->dac_mute = !value->value.integer.value[0];
+        update_xonar_mute(chip);
+    }
+    mutex_unlock(&chip->mutex);
+    return changed;
+}
+
 /* Entry points for the playback mixer */
 static struct snd_kcontrol_new xonar_playback_controls[] = {
         {
@@ -63,6 +90,13 @@ static struct snd_kcontrol_new xonar_playback_controls[] = {
                 .info = xonar_vol_info, /* Volume info */
                 .get = xonar_vol_get, /* Get volume */
                 .put = xonar_vol_put, /* Set volume */
+        },
+        {
+                .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+                .name = "Xonar Mute Switch",
+                .info = snd_ctl_boolean_mono_info,
+                .get = xonar_mute_get,
+                .put = xonar_mute_put,
         }
 };
 

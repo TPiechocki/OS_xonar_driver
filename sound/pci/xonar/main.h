@@ -31,8 +31,9 @@ struct xonar {
     /**
      * mixer controls TODO update count
      * 0 - volume
+     * 1 - mute
      */
-    struct snd_kcontrol *controls[1];
+    struct snd_kcontrol *controls[2];
 
 
     // hardware registers
@@ -181,7 +182,7 @@ static void oxygen_init(struct xonar *chip);
 
 // xonar mixer controls
 void update_xonar_volume(struct xonar *chip);
-void update_xonar_volume(struct xonar *chip);
+void update_xonar_mute(struct xonar *chip);
 
 // xonar_lib helpers
 #define GPI_EXT_POWER		0x01

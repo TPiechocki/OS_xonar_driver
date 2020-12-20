@@ -57,6 +57,8 @@ static int snd_xonar_playback_open(struct snd_pcm_substream *substream)
     struct snd_pcm_runtime *runtime = substream->runtime;
     int err;
 
+    runtime->private_data = (void *)(uintptr_t)PCM_MULTICH;
+
     runtime->hw = snd_xonar_playback_hw;
     chip->substream = substream;
 
@@ -83,7 +85,7 @@ static int snd_xonar_playback_open(struct snd_pcm_substream *substream)
     snd_pcm_set_sync(substream);
     chip->substream = substream;
 
-    chip->pcm_active = 1;
+    chip->pcm_active |= 1 << PCM_MULTICH;
 
     return 0;
 }
@@ -94,7 +96,7 @@ static int snd_xonar_playback_close(struct snd_pcm_substream *substream)
     struct xonar *chip = snd_pcm_substream_chip(substream);
     chip->substream = NULL;
 
-    chip->pcm_active = 0;
+    chip->pcm_active &= ~(1 << PCM_MULTICH);
 
     return 0;
 
@@ -186,6 +188,7 @@ static int snd_xonar_pcm_trigger(struct snd_pcm_substream *substream,
                                  int cmd)
 {
     struct xonar *chip = snd_pcm_substream_chip(substream);
+    struct snd_pcm_substream *s;
     unsigned int mask = 0;
     int pausing;
 
@@ -203,6 +206,13 @@ static int snd_xonar_pcm_trigger(struct snd_pcm_substream *substream,
             return -EINVAL;
     }
 
+    snd_pcm_group_for_each_entry(s, substream) {
+        if (snd_pcm_substream_chip(s) == chip) {
+            mask |= 1 << (unsigned int)(uintptr_t)substream->runtime->private_data;;
+            snd_pcm_trigger_done(s, substream);
+        }
+    }
+
     spin_lock(&chip->lock);
     // if not the pause
     if (!pausing) {
@@ -211,6 +221,7 @@ static int snd_xonar_pcm_trigger(struct snd_pcm_substream *substream,
             chip->pcm_running |= mask;
         else    // if stop or suspend signal
             chip->pcm_running &= ~mask;
+        printk(KERN_ERR "Trigger DMA Status write: %d", chip->pcm_running);
         oxygen_write8(chip, OXYGEN_DMA_STATUS, chip->pcm_running);
     } else {        // if pause
         if (cmd == SNDRV_PCM_TRIGGER_PAUSE_PUSH)

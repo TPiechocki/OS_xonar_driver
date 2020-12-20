@@ -3,6 +3,9 @@
 //
 
 #include <linux/mutex.h>
+#include <sound/control.h>
+#include <sound/core.h>
+
 #include "main.h"
 
 /**
@@ -112,9 +115,9 @@ static void oxygen_any_ctl_free(struct snd_kcontrol *ctl) {
 int oxygen_mixer_init(struct xonar *chip) {
     struct snd_kcontrol_new template;
     struct snd_kcontrol *ctl;
-    int err;
+    int i, err;
 
-    for (int i = 0; i < ARRAY_SIZE(xonar_playback_controls); ++i) {
+    for (i = 0; i < ARRAY_SIZE(xonar_playback_controls); ++i) {
         template = xonar_playback_controls[i];
 
         ctl = snd_ctl_new1(&template, chip);

@@ -91,7 +91,8 @@ static void snd_xonar_free(struct snd_card *card)
  */
 static int snd_xonar_dev_free(struct snd_device *device)
 {
-    return snd_xonar_free(device->device_data);
+    snd_xonar_free(device->device_data);
+    return 0;
 }
 
 static void xonar_gpio_changed(struct work_struct *work)
@@ -225,7 +226,7 @@ static int snd_xonar_create(struct snd_card *card,
     if (request_irq(pci->irq, snd_xonar_interrupt,
                     IRQF_SHARED, KBUILD_MODNAME, chip)) {
         printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
-        snd_xonar_free(chip);
+        snd_xonar_free(card);
         return -EBUSY;
     }
     chip->irq = pci->irq;
@@ -237,12 +238,13 @@ static int snd_xonar_create(struct snd_card *card,
     }
 
     // TODO init mixer_oxygen
+    int oxygen_mixer_init(chip);
 
     // Register sound device with filled data. Device is the part of the card which perform operations.
     // arguments are: already created card struct, level of the device, pointer to fill the device's data and callbacks
     err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
     if (err < 0) {
-        snd_xonar_free(chip);
+        snd_xonar_free(card);
         return err;
     }
 

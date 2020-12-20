@@ -1,5 +1,5 @@
 obj-m    :=  xonar.o
-xonar-objs := xonar_hardware.o xonar_lib.o oxygen_io.o pcm.o main.o
+xonar-objs := xonar_hardware.o xonar_lib.o oxygen_io.o simple_mixer.o pcm.o main.o
 
 MY_CFLAGS += -g -DDEBUG
 ccflags-y += ${MY_CFLAGS}

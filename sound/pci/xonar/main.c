@@ -238,7 +238,7 @@ static int snd_xonar_create(struct snd_card *card,
     }
 
     // TODO init mixer_oxygen
-    int oxygen_mixer_init(chip);
+    oxygen_mixer_init(chip);
 
     // Register sound device with filled data. Device is the part of the card which perform operations.
     // arguments are: already created card struct, level of the device, pointer to fill the device's data and callbacks
@@ -335,8 +335,6 @@ static void snd_xonar_remove(struct pci_dev *pci)
 {
     // free the card structure
     snd_card_free(pci_get_drvdata(pci));
-    // clear the pci driver fot the device
-    pci_set_drvdata(pci, NULL);
     // ALSA middle layer will release all the attached components if there were any
 }
 

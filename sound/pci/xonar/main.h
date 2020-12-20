@@ -174,6 +174,7 @@ int oxygen_mixer_init(struct xonar *chip);
 // xonar_hardware declarations
 void xonar_dx_init(struct xonar *chip);
 void xonar_dx_cleanup(struct xonar *chip);
+void xonar_d1_resume(struct xonar *chip);
 
 // set internal DACs control registers
 void set_cs43xx_params(struct xonar *chip, struct snd_pcm_hw_params *params);

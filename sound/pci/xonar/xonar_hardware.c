@@ -172,7 +172,6 @@ void xonar_dx_init(struct xonar *chip) {
     snd_component_add(chip->card, "CS4362A");
     snd_component_add(chip->card, "CS5361");
 }
-EXPORT_SYMBOL(xonar_dx_init);
 
 static void cs4362a_write(struct xonar *chip, u8 reg, u8 value);
 void xonar_dx_cleanup(struct xonar *chip)
@@ -184,7 +183,14 @@ void xonar_dx_cleanup(struct xonar *chip)
     // OXYGEN things
     oxygen_clear_bits8(chip, OXYGEN_FUNCTION, OXYGEN_FUNCTION_RESET_CODEC);
 }
-EXPORT_SYMBOL(xonar_dx_cleanup);
+
+void xonar_d1_resume(struct xonar *chip)
+{
+    oxygen_set_bits8(chip, OXYGEN_FUNCTION, OXYGEN_FUNCTION_RESET_CODEC);
+    msleep(1);
+    cs43xx_registers_init(chip);
+    xonar_enable_output(chip);
+}
 
 static void cs4398_write_cached(struct xonar *chip, u8 reg, u8 value);
 static void cs4362a_write_cached(struct xonar *chip, u8 reg, u8 value);

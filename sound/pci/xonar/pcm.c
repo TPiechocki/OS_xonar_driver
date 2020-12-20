@@ -34,9 +34,8 @@ static struct snd_pcm_hardware snd_xonar_playback_hw = {
                  SNDRV_PCM_INFO_INTERLEAVED |
                  SNDRV_PCM_INFO_BLOCK_TRANSFER |
                  SNDRV_PCM_INFO_MMAP_VALID |
-                 SNDRV_PCM_INFO_PAUSE),
-        // TODO optionally pause and resume flags
-        // TODO optionally SYNC_START flag
+                 SNDRV_PCM_INFO_PAUSE |
+                 SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
         .formats =          SNDRV_PCM_FMTBIT_S16_LE,
         .rates =            SNDRV_PCM_RATE_44100,
         .rate_min =         44100,
@@ -84,6 +83,8 @@ static int snd_xonar_playback_open(struct snd_pcm_substream *substream)
     snd_pcm_set_sync(substream);
     chip->substream = substream;
 
+    chip->pcm_active = 1;
+
     return 0;
 }
 
@@ -92,8 +93,9 @@ static int snd_xonar_playback_close(struct snd_pcm_substream *substream)
 {
     struct xonar *chip = snd_pcm_substream_chip(substream);
     chip->substream = NULL;
-    /* the hardware-specific codes will be here */
-    //....
+
+    chip->pcm_active = 0;
+
     return 0;
 
 }

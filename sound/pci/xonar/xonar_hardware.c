@@ -171,6 +171,10 @@ void xonar_dx_init(struct xonar *chip) {
     snd_component_add(chip->card, "CS4398");
     snd_component_add(chip->card, "CS4362A");
     snd_component_add(chip->card, "CS5361");
+
+    // set volume levels properly
+    update_xonar_volume(chip);
+    update_xonar_mute(chip);
 }
 
 static void cs4362a_write(struct xonar *chip, u8 reg, u8 value);
@@ -296,6 +300,8 @@ void update_xonar_volume(struct xonar *chip)
     cs4398_write_cached(chip, 5, (127 - chip->dac_volume[0]) * 2);
     cs4398_write_cached(chip, 6, (127 - chip->dac_volume[1]) * 2);
 
+    printk(KERN_ERR "Front volume changed to: %d", chip->dac_volume[0]);
+
     // for the rest of the outs
     // check if should be muted and set mute flag if needed
     mute = chip->dac_mute ? CS4362A_MUTE : 0;
@@ -312,8 +318,11 @@ void update_xonar_mute(struct xonar *chip) {
     // normal "mute" register for front playback
     reg = CS4398_MUTEP_LOW | CS4398_PAMUTE;
     // if mute than add mute flags
-    if (chip->dac_mute)
+    if (chip->dac_mute) {
         reg |= CS4398_MUTE_B | CS4398_MUTE_A;
+
+        printk(KERN_ERR "DAC MUTED");
+    }
     // write created register val
     cs4398_write_cached(chip, 4, reg);
 

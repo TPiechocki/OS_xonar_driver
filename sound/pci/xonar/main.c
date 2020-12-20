@@ -385,7 +385,7 @@ static void oxygen_init(struct xonar *chip)
 
     chip->dac_routing = 1;
     for (i = 0; i < 8; ++i)
-        chip->dac_volume[i] = chip->dac_volume_max;
+        chip->dac_volume[i] = 127;      // max volume
     chip->dac_mute = 0;     // check which is muted
     /*chip->spdif_playback_enable = 0;
     chip->spdif_bits = OXYGEN_SPDIF_C | OXYGEN_SPDIF_ORIGINAL |

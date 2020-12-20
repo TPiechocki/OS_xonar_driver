@@ -32,8 +32,9 @@ struct xonar {
      * mixer controls TODO update count
      * 0 - volume
      * 1 - mute
+     * 2 - front panel switch
      */
-    struct snd_kcontrol *controls[2];
+    struct snd_kcontrol *controls[3];
 
 
     // hardware registers
@@ -196,10 +197,14 @@ void xonar_set_cs53x1_params(struct xonar *chip,
                              struct snd_pcm_hw_params *params);
 
 #define XONAR_GPIO_BIT_INVERT	(1 << 16)
+
+// get and put for fron panel switch control
 int xonar_gpio_bit_switch_get(struct snd_kcontrol *ctl,
                               struct snd_ctl_elem_value *value);
 int xonar_gpio_bit_switch_put(struct snd_kcontrol *ctl,
                               struct snd_ctl_elem_value *value);
+
+
 void xonar_ext_power_gpio_changed(struct xonar *chip);
 
 

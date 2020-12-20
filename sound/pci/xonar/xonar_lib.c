@@ -106,6 +106,9 @@ void xonar_set_cs53x1_params(struct xonar *chip,
 			      value, GPIO_CS53x1_M_MASK);
 }
 
+/**
+ * Get status of the front panel switch
+ */
 int xonar_gpio_bit_switch_get(struct snd_kcontrol *ctl,
 			      struct snd_ctl_elem_value *value)
 {
@@ -118,6 +121,9 @@ int xonar_gpio_bit_switch_get(struct snd_kcontrol *ctl,
 	return 0;
 }
 
+/**
+ * Set front panel switch
+ */
 int xonar_gpio_bit_switch_put(struct snd_kcontrol *ctl,
 			      struct snd_ctl_elem_value *value)
 {

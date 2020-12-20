@@ -83,6 +83,7 @@ static int xonar_mute_put(struct snd_kcontrol *ctl,
     return changed;
 }
 
+#define GPIO_D1_FRONT_PANEL	0x0002
 /* Entry points for the playback mixer */
 static struct snd_kcontrol_new xonar_playback_controls[] = {
         {
@@ -100,6 +101,14 @@ static struct snd_kcontrol_new xonar_playback_controls[] = {
                 .info = snd_ctl_boolean_mono_info,
                 .get = xonar_mute_get,
                 .put = xonar_mute_put,
+        },
+        {
+                .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+                .name = "Front Panel Playback Switch",
+                .info = snd_ctl_boolean_mono_info,
+                .get = xonar_gpio_bit_switch_get,
+                .put = xonar_gpio_bit_switch_put,
+                .private_value = GPIO_D1_FRONT_PANEL,
         }
 };
 

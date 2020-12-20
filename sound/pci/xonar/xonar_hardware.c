@@ -322,6 +322,8 @@ void update_xonar_mute(struct xonar *chip) {
         reg |= CS4398_MUTE_B | CS4398_MUTE_A;
 
         printk(KERN_ERR "DAC MUTED");
+    } else {
+        printk(KERN_ERR "DAC NOT MUTED");
     }
     // write created register val
     cs4398_write_cached(chip, 4, reg);

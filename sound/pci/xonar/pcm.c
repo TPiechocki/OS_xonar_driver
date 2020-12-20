@@ -138,7 +138,20 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
     spin_unlock_irq(&chip->lock);
 
     set_cs43xx_params(chip, hw_params);
-    //oxygen_update_dac_routing(chip);
+
+    // oxygen_update_dac_routing(chip); TODO understand
+    unsigned int reg_value = (0 << OXYGEN_PLAY_DAC0_SOURCE_SHIFT) |
+                            (1 << OXYGEN_PLAY_DAC1_SOURCE_SHIFT) |
+                            (2 << OXYGEN_PLAY_DAC2_SOURCE_SHIFT) |
+                            (3 << OXYGEN_PLAY_DAC3_SOURCE_SHIFT);
+
+    oxygen_write16_masked(chip, OXYGEN_PLAY_ROUTING, reg_value,
+                          OXYGEN_PLAY_DAC0_SOURCE_MASK |
+                          OXYGEN_PLAY_DAC1_SOURCE_MASK |
+                          OXYGEN_PLAY_DAC2_SOURCE_MASK |
+                          OXYGEN_PLAY_DAC3_SOURCE_MASK);
+
+
     mutex_unlock(&chip->mutex);
 
 
@@ -242,7 +255,6 @@ static snd_pcm_uframes_t snd_xonar_pcm_pointer(struct snd_pcm_substream *substre
 
     /* get the current hardware pointer */
     current_ptr = xonar_read32(chip, OXYGEN_DMA_MULTICH_ADDRESS);
-    printk(KERN_ALERT "POINTER: %d", current_ptr - (u32)runtime->dma_addr);
     return bytes_to_frames(runtime, current_ptr - (u32)runtime->dma_addr);
 }
 

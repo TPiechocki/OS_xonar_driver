@@ -386,11 +386,11 @@ static void oxygen_init(struct xonar *chip)
     chip->dac_routing = 1;
     for (i = 0; i < 8; ++i)
         chip->dac_volume[i] = 127;      // max volume
-    chip->dac_mute = 0;     // check which is muted
-    /*chip->spdif_playback_enable = 0;
+    chip->dac_mute = 0;         // 0 means not muted
+    chip->spdif_playback_enable = 0;
     chip->spdif_bits = OXYGEN_SPDIF_C | OXYGEN_SPDIF_ORIGINAL |
                        (IEC958_AES1_CON_PCM_CODER << OXYGEN_SPDIF_CATEGORY_SHIFT);
-    chip->spdif_pcm_bits = chip->spdif_bits;*/
+    chip->spdif_pcm_bits = chip->spdif_bits;
 
     if (!(xonar_read8(chip, OXYGEN_REVISION) & OXYGEN_REVISION_2))
         oxygen_set_bits8(chip, OXYGEN_MISC,
@@ -399,8 +399,6 @@ static void oxygen_init(struct xonar *chip)
     i = xonar_read16(chip, OXYGEN_AC97_CONTROL);
     chip->has_ac97_0 = (i & OXYGEN_AC97_CODEC_0) != 0;
     chip->has_ac97_1 = (i & OXYGEN_AC97_CODEC_1) != 0;
-
-    printk(KERN_ERR "AC97s %d %d", chip->has_ac97_0, chip->has_ac97_1);
 
     oxygen_write8_masked(chip, OXYGEN_FUNCTION,
                          OXYGEN_FUNCTION_RESET_CODEC |
@@ -494,6 +492,8 @@ static void oxygen_init(struct xonar *chip)
         oxygen_write8(chip, OXYGEN_AC97_INTERRUPT_MASK, 0);
     oxygen_write32(chip, OXYGEN_AC97_OUT_CONFIG, 0);
     oxygen_write32(chip, OXYGEN_AC97_IN_CONFIG, 0);
+
+    // chip has_ac97_0, but not used because it's used only for input
     if (!(chip->has_ac97_0 | chip->has_ac97_1))
         oxygen_set_bits16(chip, OXYGEN_AC97_CONTROL,
                           OXYGEN_AC97_CLOCK_DISABLE);
@@ -529,24 +529,5 @@ static void oxygen_init(struct xonar *chip)
                              AC97_PD_PR0 | AC97_PD_PR1);
         oxygen_ac97_set_bits(chip, 0, AC97_EXTENDED_STATUS,
                              AC97_EA_PRI | AC97_EA_PRJ | AC97_EA_PRK);
-    }
-    if (chip->has_ac97_1) {
-        oxygen_set_bits32(chip, OXYGEN_AC97_OUT_CONFIG,
-                          OXYGEN_AC97_CODEC1_SLOT3 |
-                          OXYGEN_AC97_CODEC1_SLOT4);
-        oxygen_write_ac97(chip, 1, AC97_RESET, 0);
-        msleep(1);
-        oxygen_write_ac97(chip, 1, AC97_MASTER, 0x0000);
-        oxygen_write_ac97(chip, 1, AC97_HEADPHONE, 0x8000);
-        oxygen_write_ac97(chip, 1, AC97_PC_BEEP, 0x8000);
-        oxygen_write_ac97(chip, 1, AC97_MIC, 0x8808);
-        oxygen_write_ac97(chip, 1, AC97_LINE, 0x8808);
-        oxygen_write_ac97(chip, 1, AC97_CD, 0x8808);
-        oxygen_write_ac97(chip, 1, AC97_VIDEO, 0x8808);
-        oxygen_write_ac97(chip, 1, AC97_AUX, 0x8808);
-        oxygen_write_ac97(chip, 1, AC97_PCM, 0x0808);
-        oxygen_write_ac97(chip, 1, AC97_REC_SEL, 0x0000);
-        oxygen_write_ac97(chip, 1, AC97_REC_GAIN, 0x0000);
-        oxygen_ac97_set_bits(chip, 1, 0x6a, 0x0040);
     }
 }

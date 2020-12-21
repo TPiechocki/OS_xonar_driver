@@ -44,7 +44,6 @@ struct xonar {
     // interrupt mask which may be needed for interrupt handling
     unsigned int interrupt_mask;
 
-    // TODO
     struct work_struct gpio_work;
 
     // hardware oxygen registers

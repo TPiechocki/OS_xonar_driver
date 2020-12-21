@@ -62,6 +62,7 @@ static const struct pci_device_id snd_xonar_id[] =  {
 /* add IDs table to the module */
 MODULE_DEVICE_TABLE(pci, snd_xonar_id);
 
+static void snd_xonar_shutdown(struct pci_dev *pci);
 /**
  * Chip-specific destructor
  */
@@ -69,21 +70,23 @@ static void snd_xonar_free(struct snd_card *card)
 {
     struct xonar *chip = card->private_data;
 
-    /* disable hardware here if any */
-    // TODO /* (not implemented in this document) */
+    spin_lock_irq(&chip->lock);
+    chip->interrupt_mask = 0;
+    chip->pcm_running = 0;
+    oxygen_write16(chip, OXYGEN_DMA_STATUS, 0);
+    oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
+    spin_unlock_irq(&chip->lock);
 
     // release irq
     if (chip->irq >= 0)
         free_irq(chip->irq, chip);
+    flush_work(&chip->gpio_work);
     // destroy mutex
     mutex_destroy(&chip->mutex);
     // release IO region
     pci_release_regions(chip->pci);
     // disable the PCI entry
     pci_disable_device(chip->pci);
-    // free the allocated chip data
-    kfree(chip);
-    return 0;   // success
 }
 
 /**
@@ -100,8 +103,6 @@ static void xonar_gpio_changed(struct work_struct *work)
     struct xonar *chip = container_of(work, struct xonar, gpio_work);
 
     xonar_ext_power_gpio_changed(chip);
-
-
 }
 
 /**
@@ -123,7 +124,6 @@ static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id)
     // interrupt handler is atomic so use the spin lock
     spin_lock(&chip->lock);
 
-    // TODO set interrupt mask
     unsigned int clear = status & (OXYGEN_CHANNEL_A |
                       OXYGEN_CHANNEL_B |
                       OXYGEN_CHANNEL_C |
@@ -151,7 +151,7 @@ static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id)
     spin_lock(&chip->lock);
     /* acknowledge the interrupt if necessary */
 
-    // TODO perform tasks if needed
+    // perform tasks if needed
     if (status & OXYGEN_INT_GPIO)
         schedule_work(&chip->gpio_work);
 
@@ -163,6 +163,7 @@ static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id)
 }
 
 
+static void configure_pcie_bridge(struct pci_dev *pci);
 /**
  * Create/initialize chip specific data.
  * @param card - already created card structure
@@ -212,7 +213,7 @@ static int snd_xonar_create(struct snd_card *card,
     pci_set_master(pci);
     card->private_free = snd_xonar_free;
 
-    // TODO(?) configure PCIE bridge
+    configure_pcie_bridge(pci);
 
     // init oxygen hardware
     oxygen_init(chip);
@@ -220,7 +221,7 @@ static int snd_xonar_create(struct snd_card *card,
     xonar_dx_init(chip);
 
 
-    // Allocation for interruption source TODO check if this funcion works with interrupt handler
+    // Allocation for interruption source
     // arguments are irq line number, interrupt handler, flags (int is shared across PCI devices), module name and
     // data passed to handler, which is chip specific variable here
     if (request_irq(pci->irq, snd_xonar_interrupt,
@@ -237,8 +238,11 @@ static int snd_xonar_create(struct snd_card *card,
         return err;
     }
 
-    // TODO init mixer_oxygen
-    oxygen_mixer_init(chip);
+    err = oxygen_mixer_init(chip);
+    if (err < 0) {
+        snd_card_free(card);
+        return err;
+    }
 
     // Register sound device with filled data. Device is the part of the card which perform operations.
     // arguments are: already created card struct, level of the device, pointer to fill the device's data and callbacks
@@ -250,6 +254,7 @@ static int snd_xonar_create(struct snd_card *card,
 
     return 0;
 }
+
 /**
  *
  * @param pci
@@ -378,7 +383,7 @@ module_exit(alsa_card_xonar_exit)
 
 // OXYGEN I dont't really know what
 
-// it's scary to move this fuction :D
+// it's scary to move this fuction :D, but it's hardware configuration of card processor
 static void oxygen_init(struct xonar *chip)
 {
     unsigned int i;
@@ -409,7 +414,7 @@ static void oxygen_init(struct xonar *chip)
     oxygen_write8(chip, OXYGEN_DMA_STATUS, 0);
     oxygen_write8(chip, OXYGEN_DMA_PAUSE, 0);
     oxygen_write8(chip, OXYGEN_PLAY_CHANNELS,
-                  OXYGEN_PLAY_CHANNELS_2 |
+                  OXYGEN_PLAY_CHANNELS_4 |
                   OXYGEN_DMA_A_BURST_8 |
                   OXYGEN_DMA_MULTICH_BURST_8);
     oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
@@ -429,7 +434,7 @@ static void oxygen_init(struct xonar *chip)
                   (OXYGEN_FORMAT_16 << OXYGEN_MULTICH_FORMAT_SHIFT));
     oxygen_write8(chip, OXYGEN_REC_CHANNELS, OXYGEN_REC_CHANNELS_2_2_2);
     oxygen_write16(chip, OXYGEN_I2S_MULTICH_FORMAT,
-                   OXYGEN_RATE_48000 |
+                   OXYGEN_RATE_44100 |
                    chip->dac_i2s_format |
                    OXYGEN_I2S_MCLK(chip->dac_mclks) |
                    OXYGEN_I2S_BITS_16 |
@@ -458,12 +463,12 @@ static void oxygen_init(struct xonar *chip)
                             OXYGEN_SPDIF_SENSE_MASK |
                             OXYGEN_SPDIF_LOCK_MASK |
                             OXYGEN_SPDIF_RATE_MASK);
-    //oxygen_write32(chip, OXYGEN_SPDIF_OUTPUT_BITS, chip->spdif_bits);
+    oxygen_write32(chip, OXYGEN_SPDIF_OUTPUT_BITS, chip->spdif_bits);
     oxygen_write16(chip, OXYGEN_2WIRE_BUS_STATUS,
                    OXYGEN_2WIRE_LENGTH_8 |
                    OXYGEN_2WIRE_INTERRUPT_MASK |
                    OXYGEN_2WIRE_SPEED_STANDARD);
-    //oxygen_clear_bits8(chip, OXYGEN_MPU401_CONTROL, OXYGEN_MPU401_LOOPBACK);
+    oxygen_clear_bits8(chip, OXYGEN_MPU401_CONTROL, OXYGEN_MPU401_LOOPBACK);
     oxygen_write8(chip, OXYGEN_GPI_INTERRUPT_MASK, 0);
     oxygen_write16(chip, OXYGEN_GPIO_INTERRUPT_MASK, 0);
     oxygen_write16(chip, OXYGEN_PLAY_ROUTING,
@@ -529,5 +534,60 @@ static void oxygen_init(struct xonar *chip)
                              AC97_PD_PR0 | AC97_PD_PR1);
         oxygen_ac97_set_bits(chip, 0, AC97_EXTENDED_STATUS,
                              AC97_EA_PRI | AC97_EA_PRJ | AC97_EA_PRK);
+    }
+}
+
+static void configure_pcie_bridge(struct pci_dev *pci)
+{
+    enum { PEX811X, PI7C9X110, XIO2001 };
+    static const struct pci_device_id bridge_ids[] = {
+            { PCI_VDEVICE(PLX, 0x8111), .driver_data = PEX811X },
+            { PCI_VDEVICE(PLX, 0x8112), .driver_data = PEX811X },
+            { PCI_DEVICE(0x12d8, 0xe110), .driver_data = PI7C9X110 },
+            { PCI_VDEVICE(TI, 0x8240), .driver_data = XIO2001 },
+            { }
+    };
+    struct pci_dev *bridge;
+    const struct pci_device_id *p_id;
+    u32 tmp;
+
+    if (!pci->bus || !pci->bus->self)
+        return;
+    bridge = pci->bus->self;
+
+    p_id = pci_match_id(bridge_ids, bridge);
+    if (!p_id)
+        return;
+
+    // TODO check if happens
+    printk(KERN_ERR "Bridge configure will happen.");
+
+    switch (p_id->driver_data) {
+        case PEX811X:	/* PLX PEX8111/PEX8112 PCIe/PCI bridge */
+            pci_read_config_dword(bridge, 0x48, &tmp);
+            tmp |= 1;	/* enable blind prefetching */
+            tmp |= 1 << 11;	/* enable beacon generation */
+            pci_write_config_dword(bridge, 0x48, tmp);
+
+            pci_write_config_dword(bridge, 0x84, 0x0c);
+            pci_read_config_dword(bridge, 0x88, &tmp);
+            tmp &= ~(7 << 27);
+            tmp |= 2 << 27;	/* set prefetch size to 128 bytes */
+            pci_write_config_dword(bridge, 0x88, tmp);
+            break;
+
+        case PI7C9X110:	/* Pericom PI7C9X110 PCIe/PCI bridge */
+            pci_read_config_dword(bridge, 0x40, &tmp);
+            tmp |= 1;	/* park the PCI arbiter to the sound chip */
+            pci_write_config_dword(bridge, 0x40, tmp);
+            break;
+
+        case XIO2001: /* Texas Instruments XIO2001 PCIe/PCI bridge */
+            pci_read_config_dword(bridge, 0xe8, &tmp);
+            tmp &= ~0xf;	/* request length limit: 64 bytes */
+            tmp &= ~(0xf << 8);
+            tmp |= 1 << 8;	/* request count limit: one buffer */
+            pci_write_config_dword(bridge, 0xe8, tmp);
+            break;
     }
 }

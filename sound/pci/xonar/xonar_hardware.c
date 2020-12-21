@@ -86,9 +86,9 @@ void xonar_dx_init(struct xonar *chip) {
     chip->dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
     chip->adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 
-    // disable some oxygen actions
-    chip->function_flags = 0;
-    chip->misc_flags = 0;
+    // this cause oxygen actions
+    chip->function_flags = OXYGEN_MISC_MIDI;
+    chip->misc_flags = OXYGEN_FUNCTION_2WIRE;
 
     // number of channels in pcm and mixer controls
     chip->dac_channels_pcm = 8,
@@ -97,7 +97,7 @@ void xonar_dx_init(struct xonar *chip) {
     chip->dac_volume_min = 127 - 60,
     chip->dac_volume_max = 127,
 
-
+    // XONAR DX init
     data->ext_power_reg = OXYGEN_GPI_DATA;
     data->ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
     data->ext_power_bit = GPI_EXT_POWER;
@@ -158,11 +158,11 @@ void xonar_dx_init(struct xonar *chip) {
                       GPIO_D1_FRONT_PANEL |
                       GPIO_D1_MAGIC |
                       GPIO_D1_INPUT_ROUTE);
-    // disable ?, front panel output and set input route to line-in
+    // disable front panel output and set input route to line-in
     oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA,
                         GPIO_D1_FRONT_PANEL | GPIO_D1_INPUT_ROUTE);
 
-    // Input DAC?
+    // Input DAC
     xonar_init_cs53x1(chip);
     // enable cards' output
     xonar_enable_output(chip);

@@ -62,8 +62,7 @@ static int snd_xonar_playback_open(struct snd_pcm_substream *substream)
     runtime->hw = snd_xonar_playback_hw;
     chip->substream = substream;
 
-    /* more hardware-initialization will be done here */
-    // TODO CHECK ASSUMPTION: PCM_MULTICH is the chosen PCM
+    // PCM_MULTICH is the chosen PCM
     runtime->hw.channels_max = 8;
 
     // set step for buffer size changes
@@ -85,7 +84,9 @@ static int snd_xonar_playback_open(struct snd_pcm_substream *substream)
     snd_pcm_set_sync(substream);
     chip->substream = substream;
 
+    mutex_lock(&chip->mutex);
     chip->pcm_active |= 1 << PCM_MULTICH;
+    mutex_unlock(&chip->mutex);
 
     return 0;
 }
@@ -116,7 +117,7 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
     oxygen_write16(chip, OXYGEN_DMA_MULTICH_TCOUNT,
                    params_period_bytes(hw_params) / 4 - 1);
 
-    // MULTICH TODO understand and rewrite for changes
+    // MULTICH
     mutex_lock(&chip->mutex);
     spin_lock_irq(&chip->lock);
     oxygen_write8_masked(chip, OXYGEN_PLAY_CHANNELS,
@@ -134,12 +135,16 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
                           OXYGEN_I2S_FORMAT_MASK |
                           OXYGEN_I2S_MCLK_MASK |
                           OXYGEN_I2S_BITS_MASK);
-    // oxygen_update_spdif_source(chip);
+    // disable spdif
+    oxygen_write32(chip, OXYGEN_SPDIF_CONTROL,
+                   xonar_read32(chip, OXYGEN_SPDIF_CONTROL) & ~OXYGEN_SPDIF_OUT_ENABLE);
+
+
     spin_unlock_irq(&chip->lock);
 
     set_cs43xx_params(chip, hw_params);
 
-    // oxygen_update_dac_routing(chip); TODO understand
+    // DAC routing means that different channels will go to different outputs of the card
     unsigned int reg_value = (0 << OXYGEN_PLAY_DAC0_SOURCE_SHIFT) |
                             (1 << OXYGEN_PLAY_DAC1_SOURCE_SHIFT) |
                             (2 << OXYGEN_PLAY_DAC2_SOURCE_SHIFT) |
@@ -270,8 +275,8 @@ static struct snd_pcm_ops snd_xonar_playback_ops = {
         .pointer =      snd_xonar_pcm_pointer
 };
 
-// TODO redo init
-/* create a single playback stereo pcm device */
+
+/* create a single playback 4-channel pcm device */
 int snd_xonar_new_pcm(struct xonar *chip)
 {
     struct snd_pcm *pcm;

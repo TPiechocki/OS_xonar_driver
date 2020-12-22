@@ -101,6 +101,48 @@ struct xonar {
     u16 adc_i2s_format;
 };
 
+// PCM INIT
+int snd_xonar_new_pcm(struct xonar *chip);
+
+// mixer init
+int oxygen_mixer_init(struct xonar *chip);
+
+// xonar_hardware declarations
+void xonar_dx_init(struct xonar *chip);
+void xonar_dx_cleanup(struct xonar *chip);
+void xonar_d1_resume(struct xonar *chip);
+
+// set internal DACs control registers
+void set_cs43xx_params(struct xonar *chip, struct snd_pcm_hw_params *params);
+// and oxygen hardware as well
+static void oxygen_init(struct xonar *chip);
+
+// xonar mixer controls
+void update_xonar_volume(struct xonar *chip);
+void update_xonar_mute(struct xonar *chip);
+
+// xonar_lib helpers
+#define GPI_EXT_POWER		0x01
+
+void xonar_enable_output(struct xonar *chip);
+void xonar_disable_output(struct xonar *chip);
+void xonar_init_ext_power(struct xonar *chip);
+void xonar_init_cs53x1(struct xonar *chip);
+void xonar_set_cs53x1_params(struct xonar *chip,
+                             struct snd_pcm_hw_params *params);
+
+#define XONAR_GPIO_BIT_INVERT	(1 << 16)
+
+// get and put for front panel switch control
+int xonar_gpio_bit_switch_get(struct snd_kcontrol *ctl,
+                              struct snd_ctl_elem_value *value);
+int xonar_gpio_bit_switch_put(struct snd_kcontrol *ctl,
+                              struct snd_ctl_elem_value *value);
+
+
+void xonar_ext_power_gpio_changed(struct xonar *chip);
+
+
 // OXYGEN I/O operations exports
 u8 xonar_read8(struct xonar *chip, unsigned int reg);
 u16 xonar_read16(struct xonar *chip, unsigned int reg);
@@ -163,48 +205,6 @@ static inline void oxygen_ac97_clear_bits(struct xonar *chip,
 {
     oxygen_write_ac97_masked(chip, codec, index, 0, value);
 }
-
-
-// PCM INIT
-int snd_xonar_new_pcm(struct xonar *chip);
-
-// mixer init
-int oxygen_mixer_init(struct xonar *chip);
-
-// xonar_hardware declarations
-void xonar_dx_init(struct xonar *chip);
-void xonar_dx_cleanup(struct xonar *chip);
-void xonar_d1_resume(struct xonar *chip);
-
-// set internal DACs control registers
-void set_cs43xx_params(struct xonar *chip, struct snd_pcm_hw_params *params);
-// and oxygen hardware as well
-static void oxygen_init(struct xonar *chip);
-
-// xonar mixer controls
-void update_xonar_volume(struct xonar *chip);
-void update_xonar_mute(struct xonar *chip);
-
-// xonar_lib helpers
-#define GPI_EXT_POWER		0x01
-
-void xonar_enable_output(struct xonar *chip);
-void xonar_disable_output(struct xonar *chip);
-void xonar_init_ext_power(struct xonar *chip);
-void xonar_init_cs53x1(struct xonar *chip);
-void xonar_set_cs53x1_params(struct xonar *chip,
-                             struct snd_pcm_hw_params *params);
-
-#define XONAR_GPIO_BIT_INVERT	(1 << 16)
-
-// get and put for fron panel switch control
-int xonar_gpio_bit_switch_get(struct snd_kcontrol *ctl,
-                              struct snd_ctl_elem_value *value);
-int xonar_gpio_bit_switch_put(struct snd_kcontrol *ctl,
-                              struct snd_ctl_elem_value *value);
-
-
-void xonar_ext_power_gpio_changed(struct xonar *chip);
 
 
 // OXYGEN DEFINES

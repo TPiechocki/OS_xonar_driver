@@ -291,19 +291,23 @@ static void cs43xx_registers_init(struct xonar *chip)
 
 // MIXER ACTIONS
 
+/**
+ * Update hardware registers for volume level
+ */
 void update_xonar_volume(struct xonar *chip)
 {
     unsigned int i;
     u8 mute;
 
-    // update volume on front panel
+    // update volume on front output DAC
     cs4398_write_cached(chip, 5, (127 - chip->dac_volume[0]) * 2);
     cs4398_write_cached(chip, 6, (127 - chip->dac_volume[1]) * 2);
 
+    // log the information
     printk(KERN_ERR "Front volume changed to: %d", chip->dac_volume[0]);
 
     // for the rest of the outs
-    // check if should be muted and set mute flag if needed
+    // check if should be muted and set mute flag if needed; it's needed because mute is set in the same register as volume
     mute = chip->dac_mute ? CS4362A_MUTE : 0;
     // update sound vol/mute
     for (i = 0; i < 6; ++i)
@@ -320,7 +324,7 @@ void update_xonar_mute(struct xonar *chip) {
     // if mute than add mute flags
     if (chip->dac_mute) {
         reg |= CS4398_MUTE_B | CS4398_MUTE_A;
-
+        // log the mute status
         printk(KERN_ERR "DAC MUTED");
     } else {
         printk(KERN_ERR "DAC NOT MUTED");

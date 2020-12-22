@@ -154,7 +154,7 @@ static void oxygen_any_ctl_free(struct snd_kcontrol *ctl) {
 }
 
 /**
- * Initliaze controls for the chip
+ * Initialize controls for the chip
  */
 int oxygen_mixer_init(struct xonar *chip) {
     // template will have functions

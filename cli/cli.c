@@ -35,7 +35,7 @@ void mute_controller() {
         snd_mixer_selem_get_playback_switch(elem, 0, &ch0);
         // and print it
         clear();
-        printf("Stan Front (0=wyciszony): %d\n", ch0);
+        printf("Stan wycziszenia (0=wyciszony): %d\n", ch0);
 
         // give possibility to set
         printf("Podaj '0' jeśli chcesz wyciszyć, '1' żeby odciszyć lub 'q' by wyjść.\n");

@@ -446,7 +446,7 @@ static void oxygen_init(struct xonar *chip)
 
     oxygen_write8_masked(chip, OXYGEN_FUNCTION,
                          OXYGEN_FUNCTION_RESET_CODEC |
-                         chip->function_flags,
+                         OXYGEN_FUNCTION_2WIRE,
                          OXYGEN_FUNCTION_RESET_CODEC |
                          OXYGEN_FUNCTION_2WIRE_SPI_MASK |
                          OXYGEN_FUNCTION_ENABLE_SPI_4_5);
@@ -458,7 +458,7 @@ static void oxygen_init(struct xonar *chip)
                   OXYGEN_DMA_MULTICH_BURST_8);
     oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
     oxygen_write8_masked(chip, OXYGEN_MISC,
-                         chip->misc_flags,
+                         0,
                          OXYGEN_MISC_WRITE_PCI_SUBID |
                          OXYGEN_MISC_REC_C_FROM_SPDIF |
                          OXYGEN_MISC_REC_B_FROM_AC97 |

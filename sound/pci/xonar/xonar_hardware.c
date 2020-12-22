@@ -40,6 +40,7 @@
  *
  *   DOCS:
  *   CS4398: https://statics.cirrus.com/pubs/proDatasheet/CS4398_F2.pdf
+ *   CS4362A: https://statics.cirrus.com/pubs/proDatasheet/CS4362A_F2.pdf
  */
 
 #include <linux/pci.h>
@@ -111,14 +112,14 @@ void xonar_dx_init(struct xonar *chip) {
     data->output_enable_bit = GPIO_DX_OUTPUT_ENABLE;
 
     // SET FRONT OUTPUT DAC
-    // all needed flags explanation added in oxygen_regs.h
+    // all needed flags explanation added in oxygen_regs.h, but only for CS4398
 
     // reg[1] (read-only) contains chip ID
     // reg[2]: set single speed mode (30-50kHz range), no de-emphasis filter and default data format (left-justified)
     data->cs4398_regs[2] =
             CS4398_FM_SINGLE | CS4398_DEM_NONE | CS4398_DIF_LJUST;
     // reg[3]: volume, mixing and inversion control - default values don't need to be changes
-    // default is: independent sound levels for two channels and no invert signal polarity on them
+    // default is: independent sound levels (A is left B is right) for two channels and no invert signal polarity on them
     // reg[4] (mute control): low mute polarity, don't mute both channels and set auto-mute for PCM
     data->cs4398_regs[4] = CS4398_MUTEP_LOW |
                            /*CS4398_MUTE_B | CS4398_MUTE_A |*/ CS4398_PAMUTE;
@@ -130,8 +131,9 @@ void xonar_dx_init(struct xonar *chip) {
     // reg[7] (ramp and filter control): turn on ramp-down, damp-up, zero-cross and soft ramp.
     data->cs4398_regs[7] = CS4398_RMP_DN | CS4398_RMP_UP |
                            CS4398_ZERO_CROSS | CS4398_SOFT_RAMP;
-    // SET REST OF THE OUTPUTS DAC TODO?
+    // SET REST OF THE OUTPUTS DAC
     data->cs4362a_regs[4] = CS4362A_RMP_DN | CS4362A_DEM_NONE;
+    // single speed, with A as left channel and B as right
     data->cs4362a_regs[6] = CS4362A_FM_SINGLE |
                             CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L;
     // don't mute all channels
@@ -177,12 +179,15 @@ void xonar_dx_init(struct xonar *chip) {
     update_xonar_mute(chip);
 }
 
+static void cs4398_write(struct xonar *chip, u8 reg, u8 value);
 static void cs4362a_write(struct xonar *chip, u8 reg, u8 value);
 void xonar_dx_cleanup(struct xonar *chip)
 {
     // disable output from the card
     xonar_disable_output(chip);
-    // TODO check in sheets disable second DAC?
+    // disable first DAC
+    cs4398_write(chip, 8, CS4398_CPEN | CS4398_PDN);
+    // disable second DAC
     cs4362a_write(chip, 0x01, CS4362A_PDN | CS4362A_CPEN);
     // OXYGEN things
     oxygen_clear_bits8(chip, OXYGEN_FUNCTION, OXYGEN_FUNCTION_RESET_CODEC);
@@ -271,16 +276,22 @@ static void cs43xx_registers_init(struct xonar *chip)
 	cs4362a_write(chip, 0x01, CS4362A_PDN | CS4362A_CPEN);
 	/* configure */
 	cs4398_write(chip, 2, data->cs4398_regs[2]);
+	// A is left channel and B is right channel
 	cs4398_write(chip, 3, CS4398_ATAPI_B_R | CS4398_ATAPI_A_L);
 	cs4398_write(chip, 4, data->cs4398_regs[4]);
 	cs4398_write(chip, 5, data->cs4398_regs[5]);
 	cs4398_write(chip, 6, data->cs4398_regs[6]);
 	cs4398_write(chip, 7, data->cs4398_regs[7]);
+	// data is left justified again
 	cs4362a_write(chip, 0x02, CS4362A_DIF_LJUST);
+	// again soft ramp ump and zero_cross, auto mute and no mutec polatiry, also six mute controls
 	cs4362a_write(chip, 0x03, CS4362A_MUTEC_6 | CS4362A_AMUTE |
 		      CS4362A_RMP_UP | CS4362A_ZERO_CROSS | CS4362A_SOFT_RAMP);
+	// filter controls (not used)
 	cs4362a_write(chip, 0x04, data->cs4362a_regs[0x04]);
+	// invert signal polarity (not used)
 	cs4362a_write(chip, 0x05, 0);
+	// write sound level controls
 	for (i = 6; i <= 14; ++i)
 		cs4362a_write(chip, i, data->cs4362a_regs[i]);
 	/* clear power down */
@@ -289,7 +300,7 @@ static void cs43xx_registers_init(struct xonar *chip)
 }
 
 
-// MIXER ACTIONS
+// MIXER HARDWARE ACTIONS
 
 /**
  * Update hardware registers for volume level
@@ -315,6 +326,9 @@ void update_xonar_volume(struct xonar *chip)
                              (127 - chip->dac_volume[2 + i]) | mute);
 }
 
+/**
+ * Set mute switch in the hardware
+ */
 void update_xonar_mute(struct xonar *chip) {
     u8 reg, mute;
     int i;
@@ -347,10 +361,13 @@ void dump_registers(struct xonar *chip, struct snd_info_buffer *buffer)
 {
     unsigned int i;
 
+    // dump CS4398 registers
     snd_iprintf(buffer, "\nCS4398: 7?");
     for (i = 2; i < 8; ++i)
         snd_iprintf(buffer, " %02x", chip->cs4398_regs[i]);
     snd_iprintf(buffer, "\n");
+
+    // dump CS4362A registers
     snd_iprintf(buffer, "\nCS4362A:");
     for (i = 1; i <= 14; ++i)
         snd_iprintf(buffer, " %02x", chip->cs4362a_regs[i]);

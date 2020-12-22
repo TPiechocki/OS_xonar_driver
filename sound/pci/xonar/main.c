@@ -70,6 +70,7 @@ static void snd_xonar_free(struct snd_card *card)
 {
     struct xonar *chip = card->private_data;
 
+    // same actions as for shutdown without hardware cleanup
     spin_lock_irq(&chip->lock);
     chip->interrupt_mask = 0;
     chip->pcm_running = 0;
@@ -89,15 +90,9 @@ static void snd_xonar_free(struct snd_card *card)
     pci_disable_device(chip->pci);
 }
 
-/**
- * Destructor of this component
+/*
+ * When external power changed than perform the work on the chip
  */
-static int snd_xonar_dev_free(struct snd_device *device)
-{
-    snd_xonar_free(device->device_data);
-    return 0;
-}
-
 static void xonar_gpio_changed(struct work_struct *work)
 {
     struct xonar *chip = container_of(work, struct xonar, gpio_work);
@@ -115,7 +110,7 @@ static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id)
 {
     struct xonar *chip = dev_id;
 
-    // read the information whteher this chip was interrupted
+    // read the information whether this chip was interrupted
     unsigned int status = xonar_read16(chip, OXYGEN_INTERRUPT_STATUS);
     // if interrupt doesn't relate to this chip than skip handling
     if (!status)
@@ -124,6 +119,7 @@ static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id)
     // interrupt handler is atomic so use the spin lock
     spin_lock(&chip->lock);
 
+    // get only bits which contain proper information
     unsigned int clear = status & (OXYGEN_CHANNEL_A |
                       OXYGEN_CHANNEL_B |
                       OXYGEN_CHANNEL_C |
@@ -134,6 +130,7 @@ static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id)
                       OXYGEN_INT_GPIO |
                       OXYGEN_INT_AC97);
     if (clear) {
+        // spdif is not used
         if (clear & OXYGEN_INT_SPDIF_IN_DETECT)
             chip->interrupt_mask &= ~OXYGEN_INT_SPDIF_IN_DETECT;
         oxygen_write16(chip, OXYGEN_INTERRUPT_MASK,
@@ -145,11 +142,13 @@ static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id)
     /* call updater, unlock before it */
     spin_unlock(&chip->lock);
 
+    // most common interrupt is dma buffer end
+    // check if it is the case
     unsigned int elapsed_streams = status & chip->pcm_running;
     if (elapsed_streams && chip->substream)
+        // if yes then make cycle in DMA buffer
         snd_pcm_period_elapsed(chip->substream);
     spin_lock(&chip->lock);
-    /* acknowledge the interrupt if necessary */
 
     // perform tasks if needed
     if (status & OXYGEN_INT_GPIO)
@@ -177,16 +176,15 @@ static int snd_xonar_create(struct snd_card *card,
         struct pci_dev *pci) {
     struct xonar *chip;
     int err;
-    static struct snd_device_ops ops = {
-            .dev_free = snd_xonar_dev_free,
-    };
 
     chip = card->private_data;
 
     /* initialize PCI entry */
     err = pci_enable_device(pci);
-    if (err < 0)
+    if (err < 0) {
+        snd_card_free(card);
         return err;
+    }
     /* check PCI availability here aka set DMA ask */
     // I don't see this part in oxygen module so I skip this.
 
@@ -228,7 +226,7 @@ static int snd_xonar_create(struct snd_card *card,
     if (request_irq(pci->irq, snd_xonar_interrupt,
                     IRQF_SHARED, KBUILD_MODNAME, chip)) {
         printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
-        snd_xonar_free(card);
+        snd_card_free(card);
         return -EBUSY;
     }
     chip->irq = pci->irq;
@@ -252,7 +250,7 @@ static int snd_xonar_create(struct snd_card *card,
     // arguments are: already created card struct, level of the device, pointer to fill the device's data and callbacks
     err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
     if (err < 0) {
-        snd_xonar_free(card);
+        snd_card_free(card);
         return err;
     }
 
@@ -351,14 +349,18 @@ static void snd_xonar_shutdown(struct pci_dev *pci) {
     struct snd_card *card = pci_get_drvdata(pci);
     struct xonar *chip = card->private_data;
 
-    // disable the whole chip
     spin_lock_irq(&chip->lock);
+    // disable pcm and turn off interupts
     chip->interrupt_mask = 0;
     chip->pcm_running = 0;
+    // disable pcm DMA
     oxygen_write16(chip, OXYGEN_DMA_STATUS, 0);
+    // disable interrupts in chip
     oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
     spin_unlock_irq(&chip->lock);
 
+    // chip specific cleanup
+    printk(KERN_ERR "PERFORM XONAR SHUTDOWN");
     // clean up xonar specific data
     xonar_dx_cleanup(chip);
 }
@@ -389,7 +391,7 @@ module_exit(alsa_card_xonar_exit)
 /**
  * Read only proc entry
  */
-static void oxygen_proc_read(struct snd_info_entry *entry,
+static void xonar_proc_read(struct snd_info_entry *entry,
                              struct snd_info_buffer *buffer)
 {
     struct xonar *chip = entry->private_data;

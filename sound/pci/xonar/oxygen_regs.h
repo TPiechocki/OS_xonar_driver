@@ -489,6 +489,7 @@
 #define CM9780_SPDI_SSEX	0x0008
 #define CM9780_SPDI_CBEX	0x0010
 #define CM9780_SPDI_RSEX	0x0020
+// output to front panel
 #define CM9780_MIX2FR		0x0040
 #define CM9780_MIX2SS		0x0080
 #define CM9780_MIX2CB		0x0100

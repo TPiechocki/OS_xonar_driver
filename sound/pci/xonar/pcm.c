@@ -37,9 +37,9 @@ static struct snd_pcm_hardware snd_xonar_playback_hw = {
                  SNDRV_PCM_INFO_PAUSE |
                  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
         .formats =          SNDRV_PCM_FMTBIT_S16_LE,
-        .rates =            SNDRV_PCM_RATE_44100,
-        .rate_min =         44100,
-        .rate_max =         44100,
+        .rates =            SNDRV_PCM_RATE_48000,
+        .rate_min =         48000,
+        .rate_max =         48000,
         .channels_min =     2,
         .channels_max =     8,
         .buffer_bytes_max = BUFFER_BYTES_MAX_MULTICH,
@@ -75,6 +75,7 @@ static int snd_xonar_playback_open(struct snd_pcm_substream *substream)
     if (err < 0)
         return err;
 
+    // group channels in pairs
     err = snd_pcm_hw_constraint_step(runtime, 0,
                                      SNDRV_PCM_HW_PARAM_CHANNELS,
                                      2);
@@ -110,6 +111,7 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
                                            params_buffer_bytes(hw_params));
     struct xonar *chip = snd_pcm_substream_chip(substream);
 
+    // activate DMA memory for the stream
     oxygen_write32(chip, OXYGEN_DMA_MULTICH_ADDRESS,
                    (u32)substream->runtime->dma_addr);
     oxygen_write16(chip, OXYGEN_DMA_MULTICH_COUNT,
@@ -120,16 +122,19 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
     // MULTICH
     mutex_lock(&chip->mutex);
     spin_lock_irq(&chip->lock);
+    // set play channels at 4
     oxygen_write8_masked(chip, OXYGEN_PLAY_CHANNELS,
-                         OXYGEN_PLAY_CHANNELS_4,
+                         OXYGEN_PLAY_CHANNELS_2,
                          OXYGEN_PLAY_CHANNELS_MASK);
+    // proper byts format for play (16 bits)
     oxygen_write8_masked(chip, OXYGEN_PLAY_FORMAT,
                          OXYGEN_FORMAT_16 << OXYGEN_MULTICH_FORMAT_SHIFT,
                          OXYGEN_MULTICH_FORMAT_MASK);
+    // set stream details through I2S like stream Hz, left justifies, 16 bits
     oxygen_write16_masked(chip, OXYGEN_I2S_MULTICH_FORMAT,
-                          OXYGEN_RATE_44100 |
+                          OXYGEN_RATE_48000 |
                           OXYGEN_I2S_FORMAT_LJUST |
-                          OXYGEN_I2S_MCLK(OXYGEN_MCLKS(256, 128, 128) >> 0) |
+                          OXYGEN_I2S_MCLK(OXYGEN_MCLKS(256, 128, 128)) |
                           OXYGEN_I2S_BITS_16,
                           OXYGEN_I2S_RATE_MASK |
                           OXYGEN_I2S_FORMAT_MASK |
@@ -142,6 +147,7 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
 
     spin_unlock_irq(&chip->lock);
 
+    // set dacs hardware parameters
     set_cs43xx_params(chip, hw_params);
 
     // DAC routing means that different channels will go to different outputs of the card
@@ -189,6 +195,7 @@ static int snd_xonar_pcm_prepare(struct snd_pcm_substream *substream)
     unsigned int channel_mask = 1 << channel;
 
     spin_lock_irq(&chip->lock);
+    // clear DMA memory
     oxygen_set_bits8(chip, OXYGEN_DMA_FLUSH, channel_mask);
     oxygen_clear_bits8(chip, OXYGEN_DMA_FLUSH, channel_mask);
 
@@ -210,6 +217,7 @@ static int snd_xonar_pcm_trigger(struct snd_pcm_substream *substream,
     unsigned int mask = 0;
     int pausing;
 
+    // set if this was pause or not
     switch (cmd) {
         case SNDRV_PCM_TRIGGER_START:
         case SNDRV_PCM_TRIGGER_STOP:
@@ -224,9 +232,12 @@ static int snd_xonar_pcm_trigger(struct snd_pcm_substream *substream,
             return -EINVAL;
     }
 
+    // only one entry for this chip in this situation
     snd_pcm_group_for_each_entry(s, substream) {
         if (snd_pcm_substream_chip(s) == chip) {
-            mask |= 1 << (unsigned int)(uintptr_t)substream->runtime->private_data;;
+            // add substream to mask, this is trigger action
+            mask |= 1 << (unsigned int)(uintptr_t)substream->runtime->private_data;
+            // mark this substream as handled
             snd_pcm_trigger_done(s, substream);
         }
     }
@@ -240,6 +251,7 @@ static int snd_xonar_pcm_trigger(struct snd_pcm_substream *substream,
         else    // if stop or suspend signal
             chip->pcm_running &= ~mask;
         printk(KERN_ERR "Trigger DMA Status write: %d", chip->pcm_running);
+        // set DMA status to closed or open stream
         oxygen_write8(chip, OXYGEN_DMA_STATUS, chip->pcm_running);
     } else {        // if pause
         if (cmd == SNDRV_PCM_TRIGGER_PAUSE_PUSH)
@@ -286,14 +298,14 @@ int snd_xonar_new_pcm(struct xonar *chip)
     err = snd_pcm_new(chip->card, "Xonar", 0, 1, 0, &pcm);
     if (err < 0)
         return err;
+    /* set playback operator callbacks */
+    snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+                    &snd_xonar_playback_ops);
     // add this device to pcm instance
     pcm->private_data = chip;
     strcpy(pcm->name, "Xonar");
     // add created pcm instance to the device
     chip->pcm = pcm;
-    /* set playback operator callbacks */
-    snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
-                    &snd_xonar_playback_ops);
 
     /* pre-allocation of buffers */
     /* NOTE: this may fail */

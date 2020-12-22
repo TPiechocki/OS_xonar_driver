@@ -75,6 +75,7 @@ static void cs43xx_registers_init(struct xonar *chip);
  */
 void xonar_dx_init(struct xonar *chip) {
     // XONAR DX
+    int i;
     struct xonar *data = chip;
 
     // only playback
@@ -97,6 +98,11 @@ void xonar_dx_init(struct xonar *chip) {
     // max and min vol level
     chip->dac_volume_min = 127 - 60,
     chip->dac_volume_max = 127,
+
+    chip->dac_mute = 0;
+    for (i = 0; i < 8; i++) {
+        chip->dac_volume[i] = chip->dac_volume_max;
+    }
 
     // XONAR DX init
     data->ext_power_reg = OXYGEN_GPI_DATA;

@@ -196,6 +196,7 @@ static int snd_xonar_create(struct snd_card *card,
         snd_card_free(card);
         return err;
     }
+    // check if the length of the PCI area has enough size
     if (!(pci_resource_flags(pci, 0) & IORESOURCE_IO) ||
         pci_resource_len(pci, 0) < OXYGEN_IO_SIZE) {
         dev_err(card->dev, "invalid PCI I/O range\n");
@@ -212,6 +213,7 @@ static int snd_xonar_create(struct snd_card *card,
     pci_set_master(pci);
     card->private_free = snd_xonar_free;
 
+    // idk what it does, but it gets called
     configure_pcie_bridge(pci);
 
     // init oxygen hardware
@@ -231,12 +233,14 @@ static int snd_xonar_create(struct snd_card *card,
     }
     chip->irq = pci->irq;
 
+    // init pcm stream
     err = snd_xonar_new_pcm(chip);
     if (err < 0) {
         snd_card_free(card);
         return err;
     }
 
+    // init mixer controls
     err = oxygen_mixer_init(chip);
     if (err < 0) {
         snd_card_free(card);
@@ -287,7 +291,7 @@ static int snd_xonar_probe(struct pci_dev *pci,
     // init spinlock and mutex
     spin_lock_init(&chip->lock);
     mutex_init(&chip->mutex);
-    // initialize ac97 queue which is used on writes to ac97 device
+    // initialize ac97 queue which is used on writes to ac97 device, not used as it is input device
     INIT_WORK(&chip->gpio_work, xonar_gpio_changed);
     init_waitqueue_head(&chip->ac97_waitqueue);
 
@@ -453,7 +457,7 @@ static void oxygen_init(struct xonar *chip)
     oxygen_write8(chip, OXYGEN_DMA_STATUS, 0);
     oxygen_write8(chip, OXYGEN_DMA_PAUSE, 0);
     oxygen_write8(chip, OXYGEN_PLAY_CHANNELS,
-                  OXYGEN_PLAY_CHANNELS_4 |
+                  OXYGEN_PLAY_CHANNELS_2 |
                   OXYGEN_DMA_A_BURST_8 |
                   OXYGEN_DMA_MULTICH_BURST_8);
     oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
@@ -473,31 +477,30 @@ static void oxygen_init(struct xonar *chip)
                   (OXYGEN_FORMAT_16 << OXYGEN_MULTICH_FORMAT_SHIFT));
     oxygen_write8(chip, OXYGEN_REC_CHANNELS, OXYGEN_REC_CHANNELS_2_2_2);
     oxygen_write16(chip, OXYGEN_I2S_MULTICH_FORMAT,
-                   OXYGEN_RATE_44100 |
+                   OXYGEN_RATE_48000 |
                    chip->dac_i2s_format |
                    OXYGEN_I2S_MCLK(chip->dac_mclks) |
                    OXYGEN_I2S_BITS_16 |
                    OXYGEN_I2S_MASTER |
                    OXYGEN_I2S_BCLK_64);
 
-
+    // not used
     oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
                        OXYGEN_I2S_MASTER |
                        OXYGEN_I2S_MUTE_MCLK);
-
-
+    // not used
     oxygen_write16(chip, OXYGEN_I2S_B_FORMAT,
                        OXYGEN_I2S_MASTER |
                        OXYGEN_I2S_MUTE_MCLK);
-
+    // not used
     oxygen_write16(chip, OXYGEN_I2S_C_FORMAT,
                        OXYGEN_I2S_MASTER |
                        OXYGEN_I2S_MUTE_MCLK);
-
+    // disable spdif_out
     oxygen_clear_bits32(chip, OXYGEN_SPDIF_CONTROL,
                         OXYGEN_SPDIF_OUT_ENABLE |
                         OXYGEN_SPDIF_LOOPBACK);
-
+    // not used
     oxygen_clear_bits32(chip, OXYGEN_SPDIF_CONTROL,
                             OXYGEN_SPDIF_SENSE_MASK |
                             OXYGEN_SPDIF_LOCK_MASK |
@@ -507,9 +510,11 @@ static void oxygen_init(struct xonar *chip)
                    OXYGEN_2WIRE_LENGTH_8 |
                    OXYGEN_2WIRE_INTERRUPT_MASK |
                    OXYGEN_2WIRE_SPEED_STANDARD);
+    // not used
     oxygen_clear_bits8(chip, OXYGEN_MPU401_CONTROL, OXYGEN_MPU401_LOOPBACK);
     oxygen_write8(chip, OXYGEN_GPI_INTERRUPT_MASK, 0);
     oxygen_write16(chip, OXYGEN_GPIO_INTERRUPT_MASK, 0);
+    // set routing through good outputs
     oxygen_write16(chip, OXYGEN_PLAY_ROUTING,
                    OXYGEN_PLAY_MULTICH_I2S_DAC |
                    OXYGEN_PLAY_SPDIF_SPDIF |
@@ -598,7 +603,7 @@ static void configure_pcie_bridge(struct pci_dev *pci)
     if (!p_id)
         return;
 
-    // TODO check if happens
+    // it is called in the driver
     printk(KERN_ERR "Bridge configure will happen.");
 
     switch (p_id->driver_data) {

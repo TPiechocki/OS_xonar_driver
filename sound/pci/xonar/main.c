@@ -246,14 +246,6 @@ static int snd_xonar_create(struct snd_card *card,
     // PROC file with registers dump
     snd_card_ro_proc_new(chip->card, "xonar", chip, xonar_proc_read);
 
-    // Register sound device with filled data. Device is the part of the card which perform operations.
-    // arguments are: already created card struct, level of the device, pointer to fill the device's data and callbacks
-    err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-    if (err < 0) {
-        snd_card_free(card);
-        return err;
-    }
-
     return 0;
 }
 

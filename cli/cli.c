@@ -22,13 +22,20 @@ snd_mixer_elem_t* elem;
  * Show and optionally set the mute switch
  */
 void mute_controller() {
+
+    // open the mute switch element of the mixer
+    elem = snd_mixer_first_elem(handle);
+    elem = snd_mixer_elem_next(elem);
+    elem = snd_mixer_elem_next(elem);
+    snd_mixer_selem_get_id(elem, sid);
+
     while (1) {
         // get current state
         int ch0, ch1;
         snd_mixer_selem_get_playback_switch(elem, 0, &ch0);
-        snd_mixer_selem_get_playback_switch(elem, 0, &ch1);
         // and print it
-        printf("Stan Front (0=wyciszony): %d\t\t%d\n", ch0, ch1);
+        clear();
+        printf("Stan Front (0=wyciszony): %d\n", ch0);
 
         // give possibility to set
         printf("Podaj '0' jeśli chcesz wyciszyć, '1' żeby odciszyć lub 'q' by wyjść.\n");
@@ -56,6 +63,11 @@ void mute_controller() {
  * Show volume controls and optionally possibility to set them.
  */
 void vol_controller() {
+    // open the volume control element of the mixer
+    elem = snd_mixer_first_elem(handle);
+    elem = snd_mixer_elem_next(elem);
+    snd_mixer_selem_get_id(elem, sid);
+
     while (1) {
         // get min and max values of this control
         long min, max;
@@ -66,8 +78,8 @@ void vol_controller() {
 
         // get current values of front outputs
         long ch0, ch1;
-        snd_mixer_selem_get_playback_volume(elem, 0, &ch0);
-        snd_mixer_selem_get_playback_volume(elem, 0, &ch1);
+        snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_FRONT_LEFT, &ch0);
+        snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_FRONT_RIGHT, &ch1);
         // and print them
         printf("Poziom głośności wyjść Front: %ld\t\t%ld\n", ch0, ch1);
 
@@ -96,15 +108,19 @@ void vol_controller() {
     }
 }
 
-/** TODO
+/** 
  * Show front panel switch and optionally possibility to change its state.
  */
 void front_panel_controller() {
+    // open the front panel switch element of the mixer
+    elem = snd_mixer_first_elem(handle);
+    snd_mixer_selem_get_id(elem, sid);
     while (1) {
         int ch0;
         // get current state of the switch
         snd_mixer_selem_get_playback_switch(elem, 0, &ch0);
         // and print it
+        clear();
         printf("Wyjście na przedni panel, gdy 1: %d\n", ch0);
 
         // give possibility to set
@@ -115,10 +131,10 @@ void front_panel_controller() {
         getchar(); // newline symbol
         switch (answer) {
             case '0':
-                snd_mixer_selem_set_playback_switch_all(elem, 0);
+                snd_mixer_selem_set_playback_switch(elem, 0, 0);
                 break;
             case '1':
-                snd_mixer_selem_set_playback_switch_all(elem, 1);
+                snd_mixer_selem_set_playback_switch(elem, 0, 1);
                 break;
             case 'q':
                 return;
@@ -132,21 +148,15 @@ int main() {
     // allocate alsa mixer structures
     snd_mixer_open(&handle, 0);
     // assumption that card is set as default
-    snd_mixer_attach(handle, "default");
+    snd_mixer_attach(handle, "hw:0");
     snd_mixer_selem_register(handle, NULL, NULL);
     // load the mixer for the flag
     snd_mixer_load(handle);
 
-    // find the element of the mixer for required controls
-    // name can be find using amixer
     snd_mixer_selem_id_alloca(&sid);
-    snd_mixer_selem_id_set_name(sid,"Master");
-
-    // open the element of the mixer
-    elem = snd_mixer_find_selem(handle, sid);
-
 
     while (1) {
+        clear();
         printf("Witaj w CLI!\n"
                "Wybierz funkcję do ustawienia lub 'q', jeśli chcesz wyjść.:\n"
                "1) Głośności\t\t2) Wyciszenia\t\t3) Przełącznika przedniego panelu\n");

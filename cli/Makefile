@@ -1,2 +1,2 @@
 all:
-	gcc -lasound -o cli cli.c
+	gcc -o cli cli.c -lasound

@@ -37,9 +37,9 @@ static struct snd_pcm_hardware snd_xonar_playback_hw = {
                  SNDRV_PCM_INFO_PAUSE |
                  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
         .formats =          SNDRV_PCM_FMTBIT_S16_LE,
-        .rates =            SNDRV_PCM_RATE_48000,
-        .rate_min =         48000,
-        .rate_max =         48000,
+        .rates =            SNDRV_PCM_RATE_44100,
+        .rate_min =         44100,
+        .rate_max =         44100,
         .channels_min =     2,
         .channels_max =     8,
         .buffer_bytes_max = BUFFER_BYTES_MAX_MULTICH,
@@ -124,7 +124,7 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
     spin_lock_irq(&chip->lock);
     // set play channels at 4
     oxygen_write8_masked(chip, OXYGEN_PLAY_CHANNELS,
-                         OXYGEN_PLAY_CHANNELS_2,
+                         OXYGEN_PLAY_CHANNELS_4,
                          OXYGEN_PLAY_CHANNELS_MASK);
     // proper byts format for play (16 bits)
     oxygen_write8_masked(chip, OXYGEN_PLAY_FORMAT,
@@ -132,7 +132,7 @@ static int snd_xonar_pcm_hw_params(struct snd_pcm_substream *substream,
                          OXYGEN_MULTICH_FORMAT_MASK);
     // set stream details through I2S like stream Hz, left justifies, 16 bits
     oxygen_write16_masked(chip, OXYGEN_I2S_MULTICH_FORMAT,
-                          OXYGEN_RATE_48000 |
+                          OXYGEN_RATE_44100 |
                           OXYGEN_I2S_FORMAT_LJUST |
                           OXYGEN_I2S_MCLK(OXYGEN_MCLKS(256, 128, 128)) |
                           OXYGEN_I2S_BITS_16,

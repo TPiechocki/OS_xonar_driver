@@ -424,9 +424,9 @@ static void xonar_proc_read(struct snd_info_entry *entry,
     dump_registers(chip, buffer);
 }
 
-// OXYGEN I dont't really know what
-
-// it's scary to move this fuction :D, but it's hardware configuration of card processor
+// OXYGEN
+// it's scary to move this fuction, but it's hardware configuration of card processor
+// I removed some unneeded parts and added some comments here.
 static void oxygen_init(struct xonar *chip)
 {
     unsigned int i;
@@ -457,7 +457,7 @@ static void oxygen_init(struct xonar *chip)
     oxygen_write8(chip, OXYGEN_DMA_STATUS, 0);
     oxygen_write8(chip, OXYGEN_DMA_PAUSE, 0);
     oxygen_write8(chip, OXYGEN_PLAY_CHANNELS,
-                  OXYGEN_PLAY_CHANNELS_2 |
+                  OXYGEN_PLAY_CHANNELS_4 |
                   OXYGEN_DMA_A_BURST_8 |
                   OXYGEN_DMA_MULTICH_BURST_8);
     oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
@@ -477,7 +477,7 @@ static void oxygen_init(struct xonar *chip)
                   (OXYGEN_FORMAT_16 << OXYGEN_MULTICH_FORMAT_SHIFT));
     oxygen_write8(chip, OXYGEN_REC_CHANNELS, OXYGEN_REC_CHANNELS_2_2_2);
     oxygen_write16(chip, OXYGEN_I2S_MULTICH_FORMAT,
-                   OXYGEN_RATE_48000 |
+                   OXYGEN_RATE_44100 |
                    chip->dac_i2s_format |
                    OXYGEN_I2S_MCLK(chip->dac_mclks) |
                    OXYGEN_I2S_BITS_16 |

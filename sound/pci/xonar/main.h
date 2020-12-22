@@ -121,6 +121,9 @@ static void oxygen_init(struct xonar *chip);
 void update_xonar_volume(struct xonar *chip);
 void update_xonar_mute(struct xonar *chip);
 
+// FOR PROC
+void dump_registers(struct xonar *chip, struct snd_info_buffer *buffer);
+
 // xonar_lib helpers
 #define GPI_EXT_POWER		0x01
 

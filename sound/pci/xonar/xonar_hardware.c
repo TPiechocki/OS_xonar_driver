@@ -341,3 +341,19 @@ void update_xonar_mute(struct xonar *chip) {
                              (127 - chip->dac_volume[2 + i]) | mute);
 }
 
+
+// FOR PROC
+void dump_registers(struct xonar *chip, struct snd_info_buffer *buffer)
+{
+    unsigned int i;
+
+    snd_iprintf(buffer, "\nCS4398: 7?");
+    for (i = 2; i < 8; ++i)
+        snd_iprintf(buffer, " %02x", chip->cs4398_regs[i]);
+    snd_iprintf(buffer, "\n");
+    snd_iprintf(buffer, "\nCS4362A:");
+    for (i = 1; i <= 14; ++i)
+        snd_iprintf(buffer, " %02x", chip->cs4362a_regs[i]);
+    snd_iprintf(buffer, "\n");
+}
+

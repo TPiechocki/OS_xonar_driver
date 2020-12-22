@@ -164,6 +164,7 @@ static irqreturn_t snd_xonar_interrupt(int irq, void *dev_id)
 
 
 static void configure_pcie_bridge(struct pci_dev *pci);
+static void xonar_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer);
 /**
  * Create/initialize chip specific data.
  * @param card - already created card structure
@@ -243,6 +244,9 @@ static int snd_xonar_create(struct snd_card *card,
         snd_card_free(card);
         return err;
     }
+
+    // PROC file with registers dump
+    snd_card_ro_proc_new(chip->card, "xonar", chip, xonar_proc_read);
 
     // Register sound device with filled data. Device is the part of the card which perform operations.
     // arguments are: already created card struct, level of the device, pointer to fill the device's data and callbacks
@@ -380,6 +384,47 @@ static void __exit alsa_card_xonar_exit(void)
 module_init(alsa_card_xonar_init)
 module_exit(alsa_card_xonar_exit)
 
+
+// PROC
+/**
+ * Read only proc entry
+ */
+static void oxygen_proc_read(struct snd_info_entry *entry,
+                             struct snd_info_buffer *buffer)
+{
+    struct xonar *chip = entry->private_data;
+    int i, j;
+
+    switch (xonar_read8(chip, OXYGEN_REVISION) & OXYGEN_PACKAGE_ID_MASK) {
+        case OXYGEN_PACKAGE_ID_8786: i = '6'; break;
+        case OXYGEN_PACKAGE_ID_8787: i = '7'; break;
+        case OXYGEN_PACKAGE_ID_8788: i = '8'; break;
+        default:                     i = '?'; break;
+    }
+    // print processor info
+    snd_iprintf(buffer, "CMI878%c:\n", i);
+    for (i = 0; i < OXYGEN_IO_SIZE; i += 0x10) {
+        snd_iprintf(buffer, "%02x:", i);
+        for (j = 0; j < 0x10; ++j)
+            snd_iprintf(buffer, " %02x", xonar_read8(chip, i + j));
+        snd_iprintf(buffer, "\n");
+    }
+    if (mutex_lock_interruptible(&chip->mutex) < 0)
+        return;
+    if (chip->has_ac97_1) {
+        snd_iprintf(buffer, "\nAC97 2:\n");
+        for (i = 0; i < 0x80; i += 0x10) {
+            snd_iprintf(buffer, "%02x:", i);
+            for (j = 0; j < 0x10; j += 2)
+                snd_iprintf(buffer, " %04x",
+                            oxygen_read_ac97(chip, 1, i + j));
+            snd_iprintf(buffer, "\n");
+        }
+    }
+    mutex_unlock(&chip->mutex);
+    // dump hardware registers of the DACs
+    dump_registers(chip, buffer);
+}
 
 // OXYGEN I dont't really know what
 
